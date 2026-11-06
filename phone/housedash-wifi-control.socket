@@ -1,0 +1,15 @@
+[Unit]
+Description=HouseDash WLAN control socket
+
+[Socket]
+ListenStream=@HOME@/.local/share/housedash-phone/run/wifi.sock
+SocketUser=@USER@
+SocketGroup=@USER@
+SocketMode=0600
+DirectoryMode=0700
+Accept=yes
+MaxConnections=8
+RemoveOnStop=yes
+
+[Install]
+WantedBy=sockets.target

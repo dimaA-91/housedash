@@ -1,0 +1,747 @@
+/* HouseDash Design 2026: feste Fläche 1536×960 (14-Zoll bei 125 %), Seitenleiste links, flache Karten, DM Sans.
+   Wird nach family.css geladen und überschreibt dessen Glas-Stil. Kein backdrop-filter, keine Schatten (Pi-Leistung). */
+@font-face{font-family:"DM Sans";font-style:normal;font-weight:400 700;font-display:swap;src:url("./fonts/dm-sans-latin-ext.woff2") format("woff2");
+  unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C4,U+2113,U+2C60-2C7F,U+A720-A7FF}
+@font-face{font-family:"DM Sans";font-style:normal;font-weight:400 700;font-display:swap;src:url("./fonts/dm-sans-latin.woff2") format("woff2");
+  unicode-range:U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD}
+
+.family-shell{
+  --ink:#1d1f24;--ink-2:#6a6f78;--ink-3:#8a8e96;
+  --card:#fff;--solid:#fff;--paper:#fff;--fill:#f0efeb;--edge:transparent;--line:#ebe9e3;--rail:#d6d4cd;
+  --accent:#2f5fd0;--accent-soft:#e6edfb;--red:#d8232f;--good:#1f7a49;--warn:#a85f00;
+  --shadow:none;--sheen:none;--base:#f5f4f0;
+  --ok-bg:#eaf0fd;--late-bg:#fdecd9;--cancel-bg:#fde8e8;--ok-fg:#1f7a49;--bad-fg:#b3202b;--pill-ok:#e0f3e8;--pill-bad:#f9c9cc;
+  display:grid;place-items:center;padding:0;gap:0;height:100dvh;overflow:hidden;background:var(--base);
+  font-family:"DM Sans",system-ui,sans-serif;font-size:16px;
+}
+.family-dark{
+  --ink:#f2f3f5;--ink-2:#a3a8b3;--ink-3:#7d828d;
+  --card:#22252c;--solid:#22252c;--paper:#22252c;--fill:#2f333b;--line:#343841;--rail:#4a4f58;
+  --accent:#8fb3ff;--accent-soft:#2a3550;--red:#ff6b73;--good:#5fd592;--warn:#ffb340;--base:#15171b;
+  --ok-bg:#1f2a44;--late-bg:#3b2c1a;--cancel-bg:#3d1f22;--ok-fg:#5fd592;--bad-fg:#ff8a92;--pill-ok:#1d3a2b;--pill-bad:#4a2327;
+}
+.family-shell::before{display:none}
+
+/* Feste Fläche, auf den Bildschirm skaliert */
+.family-stage{flex:none;display:flex;overflow:hidden;background:var(--base);transform-origin:center center;position:absolute;left:50%;top:50%}
+
+/* Seitenleiste */
+.family-tabs{width:112px;flex:none;display:flex;flex-direction:column;gap:12px;padding:20px 14px;background:var(--solid);border:0;border-right:1px solid var(--line);border-radius:0;box-shadow:none}
+.family-shell .family-tabs button{height:104px;min-height:0;border:0;border-radius:24px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:0;background:transparent;color:var(--ink-2);font-size:16px;font-weight:500}
+.family-shell .family-tabs button[aria-current=page]{background:var(--accent-soft);color:var(--accent);font-weight:500}
+.family-tabs-status{margin-top:auto;text-align:center;font-size:13px;color:var(--ink-2)}
+.family-tabs-status i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-top:6px}
+.online{background:#3aa56b}.offline{background:#e0902b}
+
+/* Hauptbereich und Kopfzeile */
+.family-main{flex:1;min-width:0;display:flex;flex-direction:column;gap:22px;padding:26px 32px 28px}
+.family-header{display:flex;align-items:flex-end;justify-content:space-between;gap:20px;flex:none}
+.family-greeting h1{font-size:40px;font-weight:700;letter-spacing:-.02em;line-height:1.15}
+.family-header p{margin:2px 0 0;font-size:20px;color:var(--ink-2)}
+.family-header-right{display:flex;align-items:center;gap:28px}
+.family-weather{display:block;text-align:right;color:var(--ink-2)}
+.family-weather b{display:block;font-size:22px;font-weight:500;letter-spacing:0;color:var(--ink);line-height:1.2}
+.family-weather small{display:block;font-size:16px;margin-top:0;color:var(--ink-2)}
+.family-clock-time{font-size:72px;font-weight:400;letter-spacing:-.03em;line-height:.9;font-variant-numeric:tabular-nums}
+.family-content{gap:22px}
+
+/* Bedienelemente */
+.family-shell button,.family-shell select,.family-shell input,.family-shell textarea{border-radius:16px}
+.family-shell .family-primary{background:var(--accent);color:var(--paper);font-weight:700}
+.family-dark .family-primary{color:#0b1020}
+.family-shell .family-segment{border-radius:16px;padding:4px;gap:4px}
+.family-shell .family-segment button{border-radius:12px}
+.family-shell .family-segment button[aria-pressed=true]{background:var(--solid);box-shadow:0 1px 3px rgba(0,0,0,.14)}
+.family-eyebrow{font-size:15px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+
+/* Karten */
+.family-tile,.family-calendar,.family-icon-catalog{background:var(--solid);border:0;border-radius:28px;box-shadow:none;padding:28px 30px}
+
+/* Home: drei Spalten */
+.family-home{flex:1;min-height:0;display:grid;grid-template-columns:1.15fr 1fr .8fr;gap:22px;align-items:stretch;align-content:stretch}
+.family-col{display:flex;flex-direction:column;gap:22px;min-height:0;min-width:0}
+.family-agenda-card{flex:1;min-height:0;display:flex;flex-direction:column;gap:14px;overflow:hidden}
+.family-day-block{display:flex;flex-direction:column;gap:12px}
+.family-day-block+.family-day-block{margin-top:6px}
+.family-agenda-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px}
+.family-shell .family-agenda{display:flex;align-items:center;gap:16px;width:100%;min-height:0;padding:0;border:0;border-radius:20px;background:transparent;text-align:left;color:var(--ink)}
+.family-shell .family-agenda.big{padding:18px 20px;background:color-mix(in srgb,var(--c) 16%,var(--solid))}
+.family-agenda-bar{display:block;width:14px;height:40px;border-radius:7px;background:var(--c);flex:none}
+.family-agenda.big .family-agenda-bar{height:48px}
+.family-agenda-text{display:flex;flex-direction:column;gap:1px;min-width:0}
+.family-agenda-text strong{display:flex;align-items:center;gap:10px;font-size:24px;font-weight:700;line-height:1.2;overflow-wrap:anywhere}
+.family-agenda.big .family-agenda-text strong{font-size:28px}
+.family-agenda-text strong svg{flex:none;color:var(--c)}
+.family-agenda-text em{font-style:normal;font-size:17px;color:var(--ink-2)}
+.family-empty-big{margin:0;font-size:22px;color:var(--ink-3)}
+.family-bday-card{background:#1d1f24;color:#fff;border-radius:28px;padding:22px 30px;display:flex;align-items:center;gap:20px;flex:none}
+.family-dark .family-bday-card{background:#0e0f12}
+.family-bday-avatar{display:grid;place-items:center;width:64px;height:64px;flex:none;border-radius:50%;background:color-mix(in srgb,var(--c) 60%,#fff);color:#1d1f24;font-size:30px;font-weight:700}
+.family-bday-text{flex:1;display:flex;flex-direction:column;gap:2px;min-width:0}
+.family-bday-text small,.family-bday-count small{font-size:15px;letter-spacing:.08em;color:#b9bcc4;text-transform:uppercase}
+.family-bday-count small{letter-spacing:0;text-transform:none}
+.family-bday-text strong{font-size:26px;font-weight:700;line-height:1.2}
+.family-bday-count{text-align:right;display:flex;flex-direction:column;align-items:flex-end}
+.family-bday-count b{font-size:48px;line-height:1;font-weight:500}
+.family-bday-count b.word{font-size:34px;font-weight:700}
+
+/* Draußen und Innen in einer Karte */
+.family-env{flex:1;display:flex;flex-direction:column;gap:6px;padding:26px 28px}
+.family-outdoor-main{display:flex;align-items:center;justify-content:space-between;margin-top:6px}
+.family-outdoor-main strong{font-size:72px;line-height:1;font-weight:500;letter-spacing:-.03em}
+.family-outdoor-label{font-size:20px}
+.family-outdoor-sub{font-size:16px;color:var(--ink-2)}
+.family-env-rule{height:1px;background:var(--line);margin:14px 0 10px}
+.family-indoor-main{display:flex;align-items:baseline;gap:18px}
+.family-indoor-main strong{font-size:44px;font-weight:500;letter-spacing:-.02em}
+.family-indoor-main span{font-size:24px;color:var(--accent)}
+.family-climate-status{font-size:13px;color:var(--ink-2)}
+.family-outdoor.stale .family-climate-status,.family-indoor.stale .family-climate-status{color:var(--red)}
+
+/* Aufgaben auf Home */
+.family-tile-tasks{flex:1;display:flex;flex-direction:column;gap:14px;padding:26px 28px;grid-column:auto;min-height:0;overflow:hidden}
+.family-tile-head{display:flex;justify-content:space-between;align-items:baseline}
+.family-tile-head span{font-size:16px;color:var(--ink-2)}
+.family-todos{gap:0}
+.family-todos li{border-bottom:0;min-height:0;font-size:26px;gap:4px}
+.family-shell .family-todo-btn{min-height:0;padding:7px 0;gap:14px;font-size:26px;border-radius:0}
+.family-check-dot{width:40px;height:40px;min-width:40px;border:2.5px solid #9a9ea6;font-size:22px}
+.family-todos .done .family-check-dot{background:#3aa56b;border-color:#3aa56b}
+.family-todo-due{display:block;font-size:16px;color:var(--ink-2);text-decoration:none}
+.family-shell .family-more-btn{align-self:flex-start;margin-top:auto;font-size:17px;font-weight:600;padding:0;min-height:0;color:var(--accent)}
+
+/* Tab Aufgaben */
+.family-tasks-page{flex:1;min-height:0;display:grid;grid-template-columns:1.3fr 1fr;gap:22px;align-items:stretch;overflow:auto}
+.family-tasks-list{display:flex;flex-direction:column;gap:6px;min-height:0;overflow:auto}
+.family-tasks-list .family-eyebrow{margin-bottom:8px}
+.family-tasks-page .family-todos li{border-bottom:1px solid var(--line)}
+.family-tasks-page .family-todos li:last-child{border-bottom:1px solid var(--line)}
+.family-tasks-page .family-todo-btn{min-height:84px;gap:18px;font-size:30px}
+.family-tasks-page .family-check-dot{width:48px;height:48px;min-width:48px;border-width:3px}
+.family-tasks-page .family-todos .done .family-todo-btn{min-height:72px;font-size:26px;color:var(--ink-3)}
+.family-tasks-page .family-todo-text{display:block}
+.family-tasks-page .done .family-todo-text{text-decoration:line-through}
+.family-shell .family-todo-x{width:64px;height:64px;font-size:26px;color:var(--ink-3)}
+.family-tasks-list .family-hint{margin-top:auto;padding-top:12px;color:var(--ink-3);font-size:16px}
+.family-tasks-new{align-self:start;display:flex;flex-direction:column;gap:18px}
+.family-add-task{gap:18px}
+.family-add input{height:72px;border-radius:18px;padding:0 22px;font-size:24px}
+.family-add .family-primary{width:72px;height:72px;font-size:34px;border-radius:18px}
+.family-shell .family-add-task .family-chips button{min-height:60px;padding:0 26px;border-radius:30px;font-size:20px;font-weight:500}
+.family-shell .family-chips button[aria-pressed=true]{background:var(--accent);color:var(--paper)}
+.family-chips-label{font-size:16px}
+
+/* Straßenbahn */
+.family-transit{display:flex;flex-direction:column;gap:18px;padding:28px 30px;flex:1;min-height:0}
+.family-transit-head{gap:14px}
+.family-line-badge{width:52px;height:52px;border-radius:14px;background:#d8232f;box-shadow:none;font-size:28px;font-weight:700}
+.family-transit-title{flex:1;min-width:0}
+.family-transit-head h3{margin:0;font-size:24px;font-weight:700}
+.family-transit-head small{font-size:16px;color:var(--ink-2)}
+.family-pill{font-size:15px;font-weight:700;border-radius:20px;padding:10px 16px;white-space:nowrap;background:var(--pill-ok);color:var(--ok-fg)}
+.family-pill.late,.family-pill.cancel{background:var(--pill-bad);color:var(--bad-fg)}
+.family-pill.off{background:var(--fill);color:var(--warn)}
+.family-shell .family-flip{height:60px;border-radius:18px;background:var(--fill);font-size:19px;font-weight:500;width:100%;flex:none}
+.family-transit .family-hero{flex:1;min-height:0;padding:0;gap:0;display:flex;flex-direction:column;align-items:stretch;border-radius:22px;overflow:hidden;background:var(--ok-bg)}
+.tone-late .family-hero{background:var(--late-bg)}
+.tone-cancel .family-hero{background:var(--cancel-bg)}
+.family-hero-tram{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;padding:16px 24px 0}
+.family-hero-tram svg{width:100%;max-width:300px;height:auto}
+.family-hero-foot{display:flex;align-items:flex-end;justify-content:space-between;gap:12px;padding:10px 24px 22px}
+.family-transit .family-hero-text>small{font-size:15px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ok-fg)}
+.tone-late .family-hero-text>small,.tone-cancel .family-hero-text>small{color:var(--bad-fg)}
+.family-transit .family-hero-text strong{font-size:84px;line-height:1;font-weight:500;letter-spacing:-.03em;color:var(--ink)}
+.family-transit .family-hero-text strong i{font-size:32px;font-weight:500;margin-left:10px;letter-spacing:0}
+.family-transit .family-hero-text strong.struck{color:var(--bad-fg);text-decoration:line-through}
+.family-hero-side{text-align:right;padding-bottom:8px;display:flex;flex-direction:column;gap:2px}
+.family-hero-side b{font-size:20px;font-weight:700;color:var(--ok-fg)}
+.tone-late .family-hero-side b,.tone-cancel .family-hero-side b{color:var(--bad-fg)}
+.family-hero-side span{font-size:18px;color:var(--ink-2)}
+.family-hero-side .family-arrival{font-size:15px}
+.family-timeline{position:relative;height:128px;flex:none;margin:0 6px}
+.family-rail{position:absolute;left:0;right:0;top:46px;height:0;background:none;border-top:4px dashed var(--rail);opacity:1;border-radius:0}
+.family-stop{position:absolute;left:0;top:34px;width:24px;height:24px;border-radius:50%;background:#8fb3ff;border:4px solid #dbe8fd;box-shadow:none}
+.family-stop-label{position:absolute;left:0;top:64px;font-size:15px;font-weight:700;color:var(--accent)}
+.family-stop-marker{position:absolute;top:0;transform:none;width:68px;display:flex;flex-direction:column;align-items:center;gap:0;text-align:center}
+.family-stop-marker svg{margin:0}
+.family-stop-tick{display:block;width:2px;height:6px;background:var(--rail)}
+.family-stop-marker b{font-size:22px;font-weight:700;line-height:1.1;white-space:nowrap}
+.family-stop-marker small{font-size:15px;color:var(--ink-2)}
+
+/* Kalender */
+.family-calendar{flex:1;min-height:0;display:flex;flex-direction:column;gap:14px;padding:22px 26px}
+.family-toolbar{gap:12px;flex-wrap:nowrap}
+.family-toolbar h2{flex:1;font-size:30px;font-weight:700}
+.family-toolbar h2 small{font-size:20px;font-weight:400;color:var(--ink-2);margin-left:8px}
+.family-controls{gap:12px;flex-wrap:nowrap}
+.family-controls>button{height:60px;min-height:0;padding:0 26px;border-radius:16px;font-size:20px;font-weight:500}
+.family-controls>button[aria-label]{width:64px;padding:0;font-size:26px}
+.family-controls .family-segment{margin-left:8px}
+.family-shell .family-controls .family-segment button{height:52px;min-height:0;padding:0 20px;font-size:20px;color:var(--ink-2)}
+.family-shell .family-controls .family-segment button[aria-pressed=true]{color:var(--ink);font-weight:700}
+.family-controls .family-primary{margin-left:8px;font-size:20px}
+.family-timegrid{flex:1;min-height:0;display:flex;flex-direction:column}
+.tg-head{display:grid;flex:none}
+.tg-day{text-align:center;padding:6px 0 8px}
+.tg-day span{display:block;font-size:15px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.tg-day b{display:flex;align-items:center;justify-content:center;height:48px;margin:2px auto 0;font-size:26px;font-weight:500}
+.tg-day.today span{color:var(--red)}
+.tg-day.today b{width:48px;border-radius:50%;background:var(--red);color:#fff;font-weight:700}
+.tg-label{font-size:13px;color:var(--ink-3);padding-top:10px}
+.tg-allday{border-left:1px solid var(--line);padding:4px 5px 8px;display:flex;flex-direction:column;gap:5px;min-height:64px;min-width:0}
+.tg-scroll{flex:1;min-height:0;overflow:auto;border-top:1px solid var(--line);overscroll-behavior:contain}
+.tg-body{position:relative;margin-top:12px}
+.tg-hour{position:absolute;left:0;right:0;height:0;border-top:1px solid var(--line)}
+.tg-hour span{position:absolute;left:0;top:-10px;width:46px;font-size:14px;color:var(--ink-3)}
+.tg-cols{position:absolute;top:0;bottom:0;right:0;display:grid}
+.tg-col{position:relative;border-left:1px solid var(--line)}
+.tg-col.today{background:color-mix(in srgb,var(--red) 6%,var(--solid))}
+.family-shell .family-event.chip{flex-direction:row;align-items:center;gap:7px;width:100%;min-height:0;margin:0;padding:8px 10px;border:0;border-left:6px solid var(--c);border-radius:10px;font-size:17px;font-weight:700;line-height:1.2;text-align:left;background:color-mix(in srgb,var(--c) 18%,var(--solid));color:var(--ink)}
+.family-event.chip svg{flex:none;color:var(--c)}
+.family-event.chip span{font-size:inherit;color:inherit;min-width:0;overflow-wrap:anywhere}
+.family-shell .family-event.block{position:absolute;box-sizing:border-box;margin:0;min-height:0;gap:0;padding:4px 8px;overflow:hidden;border:0;border-left:6px solid var(--c);border-radius:10px;background:color-mix(in srgb,var(--c) 18%,var(--solid));color:var(--ink);width:auto}
+.family-event.block small{font-size:14px;color:var(--ink-2);line-height:1.2}
+.family-event.block strong{display:flex;align-items:center;gap:6px;font-size:18px;font-weight:700;line-height:1.2}
+.family-event.block strong svg{flex:none;color:var(--c)}
+.family-event.block strong span{font-size:inherit;color:inherit;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.family-event.block em{font-style:normal;font-size:14px;color:var(--ink-2)}
+.family-event strong svg{color:var(--c)}
+
+/* Mehr */
+.family-more{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));grid-auto-rows:150px;gap:18px;align-content:start;max-width:none;padding:0;background:none;border:0;box-shadow:none}
+.family-shell .family-more>button,.family-shell .family-more>a{display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:6px;height:auto;min-height:0;padding:0 26px;border:0;border-radius:24px;background:var(--solid);color:var(--ink);text-align:left;text-decoration:none;font-weight:400}
+.family-more>button strong,.family-more>a strong{font-size:26px;font-weight:700}
+.family-more>button span,.family-more>a span{font-size:17px;color:var(--ink-2)}
+.family-more .family-hint{grid-column:1/-1;margin:0;font-size:16px;color:var(--ink-3)}
+.family-more .family-error{grid-column:1/-1}
+.family-settings .family-tile input{width:100%}
+
+/* Eltern-Telefon */
+.family-shell .family-phone-parent{border-radius:28px;background:color-mix(in srgb,var(--phone-color) 12%,var(--solid))}
+.family-phone-incoming{border-radius:28px}
+
+/* Ruhe-Ansicht im selben Stil: dunkle Karten, DM Sans */
+.family-idle-day{border-radius:28px;background:rgba(20,22,30,.62)}
+.family-idle-birthday .family-nextbday{border-radius:28px;background:rgba(29,31,36,.9);box-shadow:none}
+
+/* Handy: fließendes Layout, Leiste unten */
+.family-shell.narrow{place-items:stretch}
+.narrow .family-stage{width:100%;height:100dvh;flex-direction:column-reverse;transform:none;position:relative;left:auto;top:auto;margin:0!important}
+.narrow .family-tabs{width:auto;flex-direction:row;gap:4px;padding:6px 8px;border-right:0;border-top:1px solid var(--line)}
+.narrow .family-shell .family-tabs button,.family-shell.narrow .family-tabs button{height:60px;flex:1;min-width:0;gap:3px;font-size:12px;border-radius:16px}
+.narrow .family-tabs button svg{width:26px;height:26px}
+.narrow .family-tabs-status{display:none}
+.narrow .family-main{padding:14px 14px 8px;gap:12px;min-height:0}
+.narrow .family-header{flex-wrap:wrap;align-items:center;gap:8px}
+.narrow .family-greeting h1{font-size:26px;white-space:normal}
+.narrow .family-header p{font-size:15px}
+.narrow .family-clock-time{font-size:40px}
+.narrow .family-header-right{gap:14px}
+.narrow .family-weather b{font-size:16px}.narrow .family-weather small{font-size:12px}
+.narrow .family-content{overflow:auto}
+.narrow .family-home{grid-template-columns:1fr;flex:none;overflow:visible}
+.narrow .family-agenda-card,.narrow .family-env,.narrow .family-tile-tasks,.narrow .family-transit{flex:none}
+.narrow .family-tile{padding:20px}
+.narrow .family-tasks-page{grid-template-columns:1fr;flex:none;overflow:visible}
+.narrow .family-more{grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:120px}
+.narrow .family-toolbar,.narrow .family-controls{flex-wrap:wrap}
+.narrow .family-controls>button{height:48px;padding:0 16px}
+.narrow .family-controls>button[aria-label]{width:48px}
+.narrow .family-calendar{padding:16px}
+.narrow .family-clock-time,.narrow .family-weather{flex:none}
+@media(max-width:480px){.narrow .family-more{grid-template-columns:1fr}.narrow .family-hero-text strong{font-size:64px}}
+
+/* Feinschliff */
+.family-transit-head{gap:10px}
+.family-pill{font-size:14px;padding:8px 12px}
+.family-agenda-card{overflow-y:auto;scrollbar-width:none}
+.family-agenda-card::-webkit-scrollbar{display:none}
+.family-stop-marker b{background:var(--solid);padding:0 3px;border-radius:6px}
+.family-shell .family-event.block.short{flex-direction:row;align-items:center;gap:8px;padding:2px 8px}
+.family-event.block.short small{flex:none}
+.family-event.block.short strong{font-size:17px;min-width:0}
+.family-hero-text strong.struck{text-decoration-thickness:4px}
+.family-transit .family-hero-text>small{white-space:nowrap}
+.family-idle-birthday{transform:none;margin-top:30px}
+.family-idle-birthday .family-bday-card{width:560px;background:rgba(29,31,36,.9)}
+
+/* Ruhe-Ansicht im Design: Uhr wie im Kopf, Termin-Zeilen wie auf Home */
+.family-idle-time{font-weight:400;letter-spacing:-.03em;font-size:clamp(120px,19vw,260px)}
+.family-idle-date{font-size:clamp(22px,2.2vw,32px);font-weight:500;color:rgba(255,255,255,.85)}
+.family-idle-days{gap:22px;margin-top:26px}
+.family-idle-day{padding:22px 26px;background:rgba(29,31,36,.82)}
+.family-idle-day h3{font-size:15px;margin-bottom:14px}
+.family-idle-day ul{gap:12px}
+.family-idle-day li{display:flex;align-items:center;gap:14px;font-size:inherit}
+.family-idle-bar{display:block;width:12px;height:42px;border-radius:6px;background:var(--c);flex:none}
+.family-idle-day li div{display:flex;flex-direction:column;min-width:0}
+.family-idle-day li strong{display:flex;align-items:center;gap:9px;font-size:22px;font-weight:700;overflow:hidden;white-space:nowrap}
+.family-idle-day li strong svg{flex:none}
+.family-idle-day li em{font-style:normal;font-size:16px;color:rgba(255,255,255,.65)}
+.family-idle-day p{font-size:20px}
+.family-idle-day li strong{white-space:normal;overflow-wrap:anywhere}.family-idle-days{margin-bottom:24px}
+
+/* Bildschirmtastatur: Anordnung wie eine deutsche Tastatur, Löschen oben rechts */
+.touch-keyboard{user-select:none;-webkit-user-select:none}
+.touch-keyboard>div{max-width:1120px;gap:7px;margin:6px auto}
+.touch-keyboard button{min-height:54px;font-size:22px;font-weight:500;border-radius:12px;max-width:96px}
+.touch-keyboard .wide{flex:1.7;max-width:170px}
+.touch-keyboard .gap{flex:1.7;max-width:170px;pointer-events:none}
+.touch-keyboard .enter{font-size:26px}
+.touch-keyboard .space{flex:6;max-width:440px;font-size:18px}
+.touch-keyboard button[aria-pressed="true"]{background:var(--accent);color:#fff;border-color:transparent}
+.touch-keyboard button:active{background:var(--fill)}
+
+/* Aktuelle Uhrzeit im Zeitraster */
+.tg-now{position:absolute;left:0;right:0;height:0;border-top:2px solid var(--red);z-index:3;pointer-events:none}
+.tg-now::before{content:"";position:absolute;left:-6px;top:-7px;width:12px;height:12px;border-radius:50%;background:var(--red)}
+
+/* Rückmeldung nach Speichern und Löschen */
+.family-toast{position:fixed;left:50%;bottom:max(28px,env(safe-area-inset-bottom));transform:translateX(-50%);z-index:700;display:flex;align-items:center;gap:18px;padding:14px 16px 14px 24px;border-radius:999px;background:var(--ink);color:var(--base);font-size:18px;font-weight:500;max-width:calc(100vw - 32px)}
+.family-toast button{min-height:44px;padding:0 20px;border:0;border-radius:999px;background:var(--base);color:var(--ink);font-size:16px;font-weight:600}
+
+/* Uhrzeit im Termin-Dialog: große Tippflächen statt Auswahllisten */
+.family-times{gap:12px}
+.family-shell .family-time-button{min-width:104px;min-height:52px;padding:0 18px;border-radius:16px;font-size:22px;font-weight:600;font-variant-numeric:tabular-nums}
+.family-shell .family-time-button[aria-expanded=true]{background:var(--accent-soft);color:var(--accent);border-color:var(--accent)}
+.family-time-panel{display:flex;flex-direction:column;gap:8px;padding:14px;border-radius:18px;background:var(--fill)}
+.family-time-grid{display:grid;gap:6px}
+.family-time-grid.hours{grid-template-columns:repeat(8,minmax(0,1fr))}
+.family-time-grid.minutes{grid-template-columns:repeat(6,minmax(0,1fr))}
+.family-shell .family-time-grid button{min-height:48px;padding:0;border-radius:12px;font-size:18px;font-variant-numeric:tabular-nums}
+.family-shell .family-time-grid button[aria-pressed=true]{background:var(--accent);color:#fff;border-color:transparent}
+.family-time-panel>.family-primary{min-height:48px;margin-top:4px}
+.narrow .family-time-grid.hours{grid-template-columns:repeat(6,minmax(0,1fr))}
+
+/* Eltern-Telefon im neuen Stil */
+.family-phone-page{gap:20px;flex:1}
+.family-phone-heading h2{font-size:26px;font-weight:700}
+.family-phone-parents{gap:20px}
+.family-shell .family-phone-parent{min-height:190px;padding:30px 34px;gap:26px;border:0;border-radius:28px;background:var(--solid);color:var(--ink)}
+.family-shell .family-phone-parent:not(:disabled):active{background:color-mix(in srgb,var(--phone-color) 14%,var(--solid))}
+.family-phone-parent .family-phone-avatar{width:96px;height:96px;font-size:44px}
+.family-phone-parent strong{font-size:36px;font-weight:700}
+.family-phone-parent small{font-size:20px}
+.family-phone-parent>svg{width:44px;height:44px;padding:14px;box-sizing:content-box;border-radius:50%;background:color-mix(in srgb,var(--phone-color) 14%,var(--solid))}
+.family-shell .family-phone-call{flex:1;border:0;border-radius:28px;background:var(--ink);color:var(--base)}
+.family-phone-call h3{color:var(--base);font-size:34px}
+.family-phone-call>p,.family-phone-call>small,.family-phone-call .family-hint{color:color-mix(in srgb,var(--base) 70%,transparent)}
+.family-phone-call>svg{color:var(--base)}
+.family-phone-call.running{background:color-mix(in srgb,var(--accent) 80%,var(--ink))}
+.family-phone-duration{color:var(--base)}
+.family-shell .family-phone-call .family-phone-avatar{background:color-mix(in srgb,var(--base) 16%,transparent);color:var(--base)}
+.family-shell .family-phone-actions>button{border-radius:999px;min-height:68px;min-width:180px}
+.family-shell .family-phone-call .family-phone-actions>button:not(.family-phone-answer):not(.family-phone-hangup){background:color-mix(in srgb,var(--base) 14%,transparent);color:var(--base);border-color:transparent}
+.family-phone-setup,.family-phone-settings>.family-tile,.family-phone-account{border:0;border-radius:24px}
+.family-phone-page input,.family-phone-page select{border:0;border-radius:14px;background:var(--fill)}
+.family-phone-incoming{border:0}
+.family-phone-incoming button{border-radius:999px}
+.family-calendar{touch-action:pan-y}
+html,body{overscroll-behavior-x:none}
+
+/* Lokale Tonprobe: große Tasten, nur bei Bedarf geöffnet. */
+.family-phone-audio-check{flex:none;background:var(--solid);border-radius:20px;padding:0 22px}
+.family-phone-audio-check summary{min-height:56px;padding:14px 0;cursor:pointer;font-weight:700;font-size:19px}
+.family-phone-audio-check summary span{font-size:15px;font-weight:400;color:var(--ink-2);margin-left:16px}
+.family-phone-audio-check-body{display:flex;flex-direction:column;gap:12px;padding:0 0 18px}
+.family-phone-audio-check-body p{margin:0}
+.family-phone-tone-buttons{display:flex;flex-wrap:wrap;gap:10px}
+.family-shell .family-phone-tone-buttons button{min-height:48px;padding:10px 20px}
+
+.family-voice-account,.family-voice-account label{display:flex;flex-direction:column;gap:14px}
+.family-voice-account{align-items:flex-start}
+.family-voice-login{display:flex;gap:26px;align-items:center;margin-top:20px}
+.family-voice-login>div:first-child{flex:none;background:#fff;border-radius:16px;padding:8px}
+.family-voice-code{display:block;font:700 32px ui-monospace,monospace;letter-spacing:3px;margin:16px 0}
+.family-voice-link{display:inline-flex;align-items:center;min-height:48px;padding:10px 18px;background:var(--accent-soft);color:var(--accent);border-radius:14px}
+.family-voice-proposal{margin-top:22px;display:flex;flex-direction:column;gap:14px}
+.family-voice-proposal article{display:flex;justify-content:space-between;align-items:center;gap:18px;padding:18px;background:var(--fill);border-radius:18px}
+.family-voice-proposal article strong{font-size:22px}
+.family-voice-proposal article p{margin:6px 0;color:var(--ink-2)}
+.family-voice .family-system-form textarea{min-height:110px;resize:vertical}
+.narrow .family-voice-login,.narrow .family-voice-proposal article{flex-direction:column;align-items:flex-start}
+
+.family-shell .family-intelligence{display:flex;align-items:center;gap:12px;min-height:76px;padding:0 8px;border:0;background:transparent;flex:none;text-align:left}
+.family-intelligence-orb{position:relative;isolation:isolate;display:grid;place-items:center;width:68px;height:68px;flex:none;border-radius:50%;background:var(--solid);color:var(--accent)}
+.family-intelligence-orb i{position:absolute;inset:3px;border-radius:43% 57% 62% 38%;z-index:-1;background:linear-gradient(145deg,#a0b9f9,#d8b4ed 48%,#95d9cc);opacity:.65;animation:family-orb-wobble 8s steps(80) infinite}
+.family-intelligence-orb i:nth-child(2){inset:8px;animation-delay:-2.8s;animation-direction:reverse;opacity:.65}
+.family-intelligence-orb i:nth-child(3){inset:13px;animation:none;opacity:.7;background:var(--solid)}
+.family-intelligence-orb svg{position:relative}
+.family-intelligence-label{font-size:16px;font-weight:700}
+.family-intelligence-label small{display:block;margin-top:4px;font-size:12px;font-weight:400;color:var(--ink-2)}
+.family-intelligence.paused i{animation-play-state:paused}
+@keyframes family-orb-wobble{0%,100%{transform:rotate(0deg) scale(.94)}50%{transform:rotate(35deg) scale(1.06)}}
+.family-intelligence-dialog{width:min(960px,calc(100vw - 32px));max-height:calc(100dvh - 40px);overflow:auto;border-radius:28px;background:var(--base);padding:26px;box-shadow:0 18px 80px #0003}
+.family-intelligence-dialog .family-system{max-width:none}
+.family-intelligence-dialog .family-tile{min-height:0}
+.narrow .family-intelligence-label{display:none}
+.family-shell.narrow .family-intelligence{min-height:52px;padding:0}
+.narrow .family-intelligence-orb{width:48px;height:48px}
+@media(prefers-reduced-motion:reduce){.family-intelligence-orb i{animation:none;will-change:auto}}
+
+/* Hinweise auf der Startseite (Müll, Wetter, DWD) */
+.family-hints{list-style:none;margin:0;padding:0;display:flex;gap:14px;flex:none;flex-wrap:wrap}
+.family-hint-pill{flex:1 1 320px;display:flex;align-items:center;gap:16px;min-width:0;padding:12px 20px;border-radius:20px;background:var(--accent-soft);color:var(--ink)}
+.family-hint-pill.warn{background:var(--late-bg)}
+.family-hint-pill.alert{background:var(--cancel-bg)}
+.family-hint-icon{flex:none;width:42px;height:42px;display:grid;place-items:center}
+.family-hint-icon b{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:var(--bad-fg);color:#fff;font-size:22px}
+.family-hint-body{display:flex;flex-direction:column;min-width:0}
+.family-hint-body strong{font-size:21px;font-weight:700;line-height:1.25}
+.family-hint-body small{font-size:15px;color:var(--ink-2);line-height:1.35;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.narrow .family-hint-body small{white-space:normal}
+
+/* WLAN-Seite unter Mehr */
+.family-wifi-status{list-style:none;margin:0 0 14px;padding:0;display:flex;flex-direction:column;gap:10px}
+.family-wifi-status li{display:flex;align-items:center;justify-content:space-between;gap:16px;min-height:44px;padding:0 4px;font-size:19px}
+.family-wifi-status span{color:var(--ink-2)}
+.family-wifi-status b{font-weight:600;overflow-wrap:anywhere;text-align:right}
+.family-wifi-status b.on{color:var(--good)}
+.family-wifi-status b.off{color:var(--ink-3)}
+.family-wifi-switch{margin:4px 0 12px}
+.family-tile-head{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.family-wifi-list{list-style:none;margin:12px 0 0;padding:0;display:flex;flex-direction:column;gap:8px}
+.family-wifi-list>li{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.family-wifi-list>li>button:first-child{flex:1;min-width:0;display:flex;align-items:center;gap:16px;min-height:64px;padding:8px 18px;border-radius:18px;text-align:left}
+.family-wifi-list>li>button.current{background:var(--accent-soft);color:var(--accent)}
+.family-wifi-name{display:flex;flex-direction:column;min-width:0;flex:1}
+.family-wifi-name strong{font-size:19px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.family-wifi-name small{font-size:14px;color:var(--ink-2)}
+.family-wifi-list.known>li{min-height:56px;padding:4px 4px 4px 8px}
+.family-wifi-form{flex-basis:100%;display:flex;flex-wrap:wrap;gap:10px;padding:10px 6px 4px}
+.family-wifi-form input{flex:1 1 260px;min-height:56px}
+.family-wifi-form button{min-height:56px;padding:0 20px;border-radius:16px}
+.family-wifi-form small{flex-basis:100%}
+.family-signal{flex:none;color:var(--good)}
+
+/* Gespräch: Rückgängig und Bestätigen als schlanke Zeile */
+.family-conversation-action{display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap}
+.family-conversation-action>div{display:flex;flex-direction:column;gap:2px;min-width:0}
+.family-conversation-action small{font-size:15px;color:var(--ink-2)}
+.family-conversation-action>span{display:flex;gap:10px;flex-wrap:wrap}
+.family-conversation-action.undo{background:var(--accent-soft);border-color:transparent}
+.family-conversation-line.connecting i{animation:family-conversation-breathe 1.8s ease-in-out infinite}
+
+/* Family Brain */
+.family-brain-prompt{display:flex;flex-direction:column;gap:10px;flex:none}
+.family-brain-reminder{padding:10px 18px;border-radius:16px;background:var(--accent-soft);color:var(--ink);font-weight:600;font-size:17px}
+.family-brain-question{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 18px;border-radius:20px;background:var(--solid)}
+.family-brain-question p{flex:1 1 320px;margin:0;font-size:18px;font-weight:500}
+.family-brain-question button{min-height:48px;padding:0 18px;border-radius:14px}
+.family-brain-list{list-style:none;margin:12px 0;padding:0;display:flex;flex-direction:column;gap:8px}
+.family-brain-list li{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:10px 12px;border-radius:14px;background:var(--fill)}
+.family-brain-list li>span{flex:1 1 240px;display:flex;flex-direction:column;gap:2px;min-width:0}
+.family-brain-list small{color:var(--ink-2);font-size:14px}
+.family-brain-list button{min-height:44px}
+.family-brain-add{display:flex;gap:10px;margin-top:10px}
+.family-brain-add input{flex:1;min-width:0;min-height:52px}
+.family-brain-clear{display:flex;gap:10px;flex-wrap:wrap}
+
+/* Lange Termine: ganze Wörter umbrechen, dann "…" statt abgeschnittener Buchstaben */
+.family-event.chip span,.family-event.block strong span,.month .family-event strong{overflow-wrap:break-word;word-break:normal;hyphens:auto}
+.family-event.chip span{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+.family-event.block strong{align-items:flex-start;min-width:0}
+.family-event.block strong span{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:var(--lines,2);overflow:hidden;white-space:normal}
+.family-event.block.short strong span{-webkit-line-clamp:1}
+/* Schmale Spalten (Termine nebeneinander): Uhrzeit weg, Symbol klein, der Titel bekommt den Platz */
+.family-event.block.tight{padding:3px 6px}
+.family-event.block.tight small{display:none}
+.family-event.block.tight strong{font-size:14px;gap:4px}
+.family-event.block.tight strong svg{width:14px;height:14px}
+.family-event.block.tight:not(.short) strong span{-webkit-line-clamp:calc(var(--lines,2) + 1)}
+/* Monat: zwei Termine je Tag, sauber in zwei Zeilen, dann "+N weitere" */
+.month .family-event strong{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:1;overflow:hidden}
+.narrow .month .family-event strong{-webkit-line-clamp:2}
+.family-more-events{margin:2px 4px 0;font-size:13px;font-weight:600;color:var(--ink-2)}
+
+/* Handy: Monat als Liste nur mit Tagen, an denen etwas ist; Steuerung in zwei kompakten Zeilen */
+.narrow .family-grid.month{grid-template-rows:none;grid-auto-rows:auto;overflow:visible}
+.narrow .month .family-day{overflow:visible;padding:10px}
+.narrow .month .family-day:not(:has(.family-event)):not(.today){display:none}
+.narrow .month .family-event small,.narrow .month .family-event span{display:block}
+.narrow .month .family-event{font-size:16px!important;padding:8px 10px!important}
+.narrow .month .family-day>header strong{font-size:17px;min-width:32px;height:32px;border-radius:999px}
+.narrow .family-calendar .family-toolbar{flex-direction:column;align-items:stretch;gap:10px}
+.narrow .family-calendar .family-toolbar h2{font-size:24px}
+.narrow .family-calendar .family-controls{display:grid;grid-template-columns:48px 1fr 48px auto;gap:8px;align-items:center}
+.narrow .family-calendar .family-controls>.family-segment{grid-column:1/-1;order:5}
+.narrow .family-calendar .family-controls>.family-primary{order:4;height:48px;padding:0 14px;font-size:16px}
+.narrow .family-calendar .family-controls>button{height:48px;min-height:48px}
+.narrow .family-calendar .family-segment button{min-height:44px}
+
+/* Handy, Kalender: Kopfzeile scrollt weg, Monat und Blätter-Knöpfe bleiben oben kleben */
+.narrow .family-main:has(.family-calendar){overflow-y:auto;overscroll-behavior:contain}
+.narrow .family-main:has(.family-calendar) .family-content{overflow:visible;flex:none}
+.narrow .family-calendar{flex:none;overflow:visible}
+.narrow .family-calendar .family-grid{overflow:visible;flex:none}
+.narrow .family-calendar .family-toolbar{position:sticky;top:-14px;z-index:5;margin:-16px -16px 0;padding:14px 16px 12px;border-radius:24px 24px 0 0;background:var(--solid);box-shadow:0 8px 12px -12px #0004}
+
+/* ===== Handy: alle Bereiche. Der Kopf scrollt mit weg, nichts ragt über den Rand ===== */
+.narrow .family-main{overflow-y:auto;overscroll-behavior:contain;padding-bottom:16px}
+.narrow .family-main .family-content{overflow:visible;flex:none}
+.narrow .family-header{gap:4px}
+.narrow .family-greeting h1{font-size:24px;line-height:1.2}
+.narrow .family-header p{font-size:14px;margin:0}
+.narrow .family-header-right{width:100%;justify-content:space-between;gap:10px}
+.narrow .family-clock-time{font-size:32px}
+.narrow .family-weather b{font-size:14px}
+.narrow .family-weather small{font-size:11px}
+.narrow .family-shell .family-intelligence,.family-shell.narrow .family-intelligence{min-height:52px;padding:0;gap:6px}
+.narrow .family-intelligence-orb{width:52px;height:52px}
+.narrow .family-intelligence-label small{display:none}
+.narrow .family-intelligence-label{font-size:14px}
+.narrow input,.narrow select,.narrow textarea{max-width:100%;min-width:0}
+.narrow .family-tile{min-width:0;overflow-wrap:anywhere}
+.narrow .family-tasks-page{grid-template-columns:minmax(0,1fr)}
+.narrow .family-add{min-width:0}
+.narrow .family-add input{flex:1;min-width:0}
+.narrow .family-chips{min-width:0}
+/* Home: kleinere Schrift, mehr passt auf den Bildschirm */
+.narrow .family-agenda-text strong{font-size:18px}
+.narrow .family-agenda.big .family-agenda-text strong{font-size:20px}
+.narrow .family-agenda-text em{font-size:14px}
+.narrow .family-shell .family-agenda.big,.family-shell.narrow .family-agenda.big{padding:12px 14px}
+.narrow .family-agenda-bar,.narrow .family-agenda.big .family-agenda-bar{height:34px;width:10px}
+.narrow .family-tile{padding:16px}
+.narrow .family-hint-pill{padding:10px 14px}
+.narrow .family-hint-body strong{font-size:17px}
+/* Mehr: zwei kompakte Kacheln nebeneinander */
+.narrow .family-more,.narrow .family-more{grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:minmax(88px,auto);gap:10px}
+.narrow .family-more>button,.narrow .family-more>a{padding:12px 14px;min-height:88px}
+.narrow .family-more>button strong,.narrow .family-more>a strong{font-size:17px}
+.narrow .family-more>button span,.narrow .family-more>a span{font-size:13px;line-height:1.3}
+@media(max-width:480px){.narrow .family-more{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* Monat am Handy wie bei Apple: Raster, Punkte, darunter der gewählte Tag */
+.family-monthview{display:flex;flex-direction:column;gap:12px}
+.mv-head,.mv-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr))}
+.mv-head span{text-align:center;font-size:12px;font-weight:600;letter-spacing:.04em;color:var(--ink-2);padding-bottom:4px}
+.mv-grid{row-gap:2px}
+.family-shell .mv-day{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:3px;min-height:54px;padding:4px 0;border:0;border-radius:14px;background:transparent;color:var(--ink)}
+.mv-num{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;font-size:17px;font-weight:500;font-variant-numeric:tabular-nums}
+.mv-day.outside{opacity:.38}
+.mv-day.today .mv-num{color:var(--red);font-weight:700}
+.family-shell .mv-day.selected .mv-num{background:var(--ink);color:var(--solid)}
+.family-shell .mv-day.selected.today .mv-num{background:var(--red);color:#fff}
+.mv-dots{display:flex;gap:3px;height:6px}
+.mv-dots i{width:6px;height:6px;border-radius:50%}
+.mv-list{display:flex;flex-direction:column;gap:8px;padding-top:12px;border-top:1px solid var(--line)}
+.mv-list h3{margin:0 0 2px;font-size:17px;font-weight:700}
+.mv-list .family-empty{margin:8px 0;text-align:left;color:var(--ink-2)}
+.family-shell .family-event.mv-event{display:flex;flex-direction:column;gap:2px;text-align:left;width:100%;padding:10px 12px;border:0;border-left:6px solid var(--c);border-radius:14px;background:color-mix(in srgb,var(--c) 14%,var(--solid))}
+.mv-event small{font-size:13px;color:var(--ink-2)}
+.mv-event strong{display:flex;align-items:center;gap:8px;font-size:17px;font-weight:700;overflow-wrap:anywhere}
+.mv-event strong svg{flex:none;color:var(--c)}
+.mv-event>span{font-size:13px;color:var(--ink-2)}
+
+/* Handy: Zeitraster für Tag und Woche. Die Woche wischt seitlich, die Uhrzeiten und "ganztg." bleiben links stehen */
+.tg-pan{display:flex;flex:1;min-height:0;min-width:0}
+.tg-inner{flex:1;display:flex;flex-direction:column;min-height:0;min-width:0}
+.narrow .family-timegrid{flex:none;display:block}
+.narrow .tg-pan{display:block;overflow-x:auto;overscroll-behavior-x:contain;touch-action:pan-x pan-y;scrollbar-width:none;scroll-snap-type:x mandatory;scroll-padding-left:52px}
+.narrow .tg-col{scroll-snap-align:start}
+.narrow .tg-pan::-webkit-scrollbar{display:none}
+.narrow .tg-inner{display:block}
+.narrow .tg-scroll{overflow:visible;flex:none}
+.narrow .tg-head>div:first-child,.narrow .tg-label{position:sticky;left:0;z-index:4;background:var(--solid)}
+.narrow .tg-hour span{position:sticky;left:0;top:auto;display:block;width:46px;margin-top:-10px;z-index:4;background:var(--solid);font-size:12px}
+.narrow .tg-day span{font-size:12px}
+.narrow .tg-day b{height:36px;font-size:20px}
+.narrow .tg-day.today b{width:36px}
+.narrow .family-event.block strong{font-size:15px}
+.narrow .family-event.block small{font-size:12px}
+.narrow .family-event.chip{font-size:14px;padding:6px 8px}
+
+/* Handy: Aufgaben und Telefon mit alltagstauglich großen Knöpfen (44 bis 52 px statt 60 bis 84 px) */
+.family-shell.narrow .family-tasks-page .family-todo-btn{min-height:56px;gap:12px;font-size:18px}
+.family-shell.narrow .family-tasks-page .family-todos .done .family-todo-btn{min-height:48px;font-size:17px}
+.family-shell.narrow .family-tasks-page .family-check-dot,.family-shell.narrow .family-check-dot{width:30px;height:30px;min-width:30px;border-width:2.5px;font-size:16px}
+.family-shell.narrow .family-todo-x{width:44px;height:44px;font-size:18px}
+.family-shell.narrow .family-todos li{font-size:18px}
+.family-shell.narrow .family-todo-due{font-size:13px}
+.family-shell.narrow .family-add input{height:48px;border-radius:14px;padding:0 14px;font-size:17px}
+.family-shell.narrow .family-add .family-primary{width:48px;height:48px;font-size:24px;border-radius:14px}
+.family-shell.narrow .family-add-task{gap:12px}
+.family-shell.narrow .family-add-task .family-chips button{min-height:40px;padding:0 16px;border-radius:20px;font-size:15px}
+.family-shell.narrow .family-tasks-new{gap:12px}
+.family-shell.narrow .family-more-btn{font-size:16px;min-height:44px}
+.family-shell.narrow .family-phone-page{gap:14px}
+.family-shell.narrow .family-phone-heading h2{font-size:22px}
+.family-shell.narrow .family-phone-page button,.family-shell.narrow .family-phone-incoming button{min-height:44px}
+.family-shell.narrow .family-phone-actions>button{min-width:0;flex:1 1 140px;min-height:48px;padding:8px 16px;font-size:16px;border-radius:16px}
+.family-shell.narrow .family-phone-actions{gap:10px;margin-top:6px}
+.family-shell.narrow .family-phone-parent{min-height:84px;padding:14px 16px;gap:14px;border-radius:20px}
+.family-shell.narrow .family-phone-parents{gap:10px}
+.family-shell.narrow .family-phone-parent .family-phone-avatar{width:56px;height:56px;font-size:26px}
+.family-shell.narrow .family-phone-parent strong{font-size:22px}
+.family-shell.narrow .family-phone-parent small{font-size:14px}
+.family-shell.narrow .family-phone-parent>svg{width:26px;height:26px;padding:10px}
+.family-shell.narrow .family-phone-call{min-height:180px;padding:18px;gap:8px}
+.family-shell.narrow .family-phone-call h3{font-size:24px}
+.family-shell.narrow .family-phone-avatar.large{width:64px;height:64px;font-size:30px}
+.family-shell.narrow .family-phone-duration{font-size:32px}
+.family-shell.narrow .family-phone-call-status{font-size:17px!important}
+.family-shell.narrow .family-phone-page input,.family-shell.narrow .family-phone-page select{min-height:48px;font-size:16px}
+.family-shell.narrow .family-phone-setup,.family-shell.narrow .family-phone-settings>.family-tile,.family-shell.narrow .family-phone-account{padding:16px}
+.family-shell.narrow .family-phone-notice{padding:10px 14px;font-size:14px}
+
+/* Wettersymbol neben der Temperatur in der Kopfzeile */
+.family-weather:not(.family-weather-error){display:flex;align-items:center;justify-content:flex-end;gap:10px}
+.family-weather-text{display:block;text-align:right;min-width:0}
+.family-weather>svg{flex:none}
+.narrow .family-weather>svg{width:32px;height:32px}
+
+
+/* Handy, Wochenraster: In den schmalen Spalten bekommt der Titel den ganzen Platz, das Symbol entfällt */
+.narrow .family-timegrid.compact .family-event.block strong{gap:0}
+.narrow .family-timegrid.compact .family-event.block strong>:not(span){display:none}
+
+/* Tablet (iPad quer): Aufgabentitel nie mitten im Wort umbrechen, das Etikett rückt stattdessen in die nächste Zeile */
+.family-todo-btn{flex-wrap:wrap}
+.family-todo-text{overflow-wrap:normal;word-break:normal;min-width:max-content}
+.family-transit-head{flex-wrap:wrap}
+.family-transit-head>div{min-width:0;flex:1 1 130px}
+.family-transit-head>*:last-child:not(div){flex:none;white-space:nowrap}
+
+/* Termin-Dialog: Speichern und Löschen kleben unten im Formular, damit sie auch bei offener Bildschirmtastatur ohne Scrollen erreichbar sind */
+.family-form.event .family-event-actions{position:sticky;bottom:-24px;margin:0 -24px -24px;padding:14px 24px 24px;background:linear-gradient(transparent,var(--solid) 18px);z-index:2}
+
+/* Termin lesen: Notizen groß und gut lesbar, Bearbeiten als eigener Schritt */
+.family-event-detail{width:min(620px,100%)}
+.family-event-detail h2{margin:0;font-size:30px;line-height:1.2}
+.family-event-detail>p{margin:0;font-size:18px;line-height:1.5}
+.family-event-detail .family-apple-notes{padding:16px 18px;border-radius:18px;background:var(--fill);font-size:19px;line-height:1.5}
+.family-event-detail-actions{display:flex;gap:10px;margin-top:6px}
+.family-event-detail-actions button{flex:1;min-height:56px;font-size:18px;border-radius:18px}
+
+/* Home: drei feste Anordnungen (langes Drücken auf eine freie Stelle). Standard bleibt unverändert, am Handy gibt es nur eine Spalte. */
+.family-shell:not(.narrow) .family-home:not([data-layout=standard]){gap:22px}
+.family-shell:not(.narrow) .family-home:not([data-layout=standard]) .family-col{display:contents}
+.family-shell:not(.narrow) .family-home[data-layout=kompakt]{grid-template-columns:1.1fr 1fr 1fr;grid-template-rows:minmax(0,1.3fr) minmax(0,.7fr) auto;grid-template-areas:"agenda transit env" "agenda tasks tasks" "bday tasks tasks"}
+.family-shell:not(.narrow) .family-home[data-layout=fokus]{grid-template-columns:1fr 1.1fr 1.05fr;grid-template-rows:minmax(0,1.45fr) minmax(0,.55fr) auto;grid-template-areas:"agenda tasks transit" "agenda tasks env" "bday tasks env"}
+.family-shell:not(.narrow) .family-home:not([data-layout=standard]) .family-agenda-card{grid-area:agenda}
+.family-shell:not(.narrow) .family-home:not([data-layout=standard]) .family-bday-card{grid-area:bday}
+.family-shell:not(.narrow) .family-home:not([data-layout=standard]) .family-transit{grid-area:transit}
+.family-shell:not(.narrow) .family-home:not([data-layout=standard]) .family-env{grid-area:env}
+.family-shell:not(.narrow) .family-home:not([data-layout=standard]) .family-tile-tasks{grid-area:tasks}
+/* Straßenbahn kompakt: ohne Bild, nur Zeit und Zeitstrahl */
+.family-shell:not(.narrow) .family-home:not([data-layout=standard]) .family-transit{gap:10px;padding:20px 24px;overflow:hidden}
+.family-shell:not(.narrow) .family-home:not([data-layout=standard]) .family-transit .family-hero-tram{display:none}
+.family-shell:not(.narrow) .family-home:not([data-layout=standard]) .family-transit .family-flip{min-height:36px;padding:2px 12px;font-size:15px}
+.family-shell:not(.narrow) .family-home:not([data-layout=standard]) .family-transit .family-hero-text strong{font-size:56px}
+.family-shell:not(.narrow) .family-home:not([data-layout=standard]) .family-env{overflow:hidden;padding:20px 24px}
+.family-shell:not(.narrow) .family-home:not([data-layout=standard]) .family-outdoor-main strong{font-size:52px}
+.family-shell:not(.narrow) .family-home:not([data-layout=standard]) .family-tile-tasks{min-height:0;overflow:hidden}
+
+/* Auswahl der Anordnung */
+.family-layout-picker{width:min(820px,100%);display:flex;flex-direction:column;gap:18px}
+.family-layout-picker h2{margin:0;font-size:28px}
+.family-layout-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.family-shell .family-layout-option{display:flex;flex-direction:column;align-items:stretch;gap:8px;padding:14px;border:2px solid transparent;border-radius:22px;background:var(--fill);text-align:left;color:var(--ink)}
+.family-shell .family-layout-option.on{border-color:var(--accent);background:var(--accent-soft)}
+.family-layout-option strong{font-size:19px}
+.family-layout-option small{font-size:14px;color:var(--ink-2);line-height:1.35}
+.family-layout-thumb{display:grid;gap:4px;height:120px;padding:6px;border-radius:12px;background:var(--base)}
+.family-layout-thumb i{border-radius:6px;background:var(--rail);display:block}
+.family-layout-thumb .a{grid-area:a;background:#8fb3ff}
+.family-layout-thumb .b{grid-area:b;background:#6a6f78}
+.family-layout-thumb .t{grid-area:t;background:#f0b44c}
+.family-layout-thumb .e{grid-area:e;background:#7ed6a6}
+.family-layout-thumb .k{grid-area:k;background:#e58a8f}
+.family-layout-thumb.standard{grid-template-columns:1.15fr 1fr .8fr;grid-template-rows:1fr .45fr 1fr;grid-template-areas:"a k e" "a k e" "b k t"}
+.family-layout-thumb.standard .k{grid-row:1 / 4}
+.family-layout-thumb.kompakt{grid-template-columns:1.1fr 1fr 1fr;grid-template-rows:.9fr 1.1fr .5fr;grid-template-areas:"a k e" "a t t" "b t t"}
+.family-layout-thumb.fokus{grid-template-columns:1fr 1.15fr 1fr;grid-template-rows:.9fr 1.1fr .5fr;grid-template-areas:"a t k" "a t e" "b t e"}
+@media(max-width:700px){.family-layout-options{grid-template-columns:1fr}.family-layout-thumb{height:90px}}
+
+.family-shell:not(.narrow) .family-home:not([data-layout=standard]) .family-transit .family-hero{flex:none}
+.family-shell:not(.narrow) .family-home:not([data-layout=standard]) .family-transit .family-hero-foot{padding:10px 18px}
+.family-shell:not(.narrow) .family-home:not([data-layout=standard]) .family-transit-head .family-line-badge{width:44px;height:44px;font-size:22px}
+.family-shell:not(.narrow) .family-home:not([data-layout=standard]) .family-transit{gap:6px;padding:16px 22px}
+.family-shell:not(.narrow) .family-home:not([data-layout=standard]) .family-transit .family-hero-foot{padding:6px 16px}
+.family-shell:not(.narrow) .family-home:not([data-layout=standard]) .family-transit .family-hero-text strong{font-size:46px}
+.family-shell:not(.narrow) .family-home:not([data-layout=standard]) .family-transit .family-flip{min-height:32px}
+
+/* Einheitlicher Seitenkopf: Unterseiten (Mehr, Telefon-Kontakte) haben den Zurück-Knopf immer links neben dem Titel */
+.family-greeting.has-back{display:flex;align-items:center;gap:18px;min-width:0}
+.family-greeting-text{min-width:0}
+.family-shell .family-back{display:inline-flex;align-items:center;gap:6px;flex:none;min-height:60px;padding:0 22px 0 14px;border:0;border-radius:999px;background:var(--solid);color:var(--accent);font:600 19px/1 "DM Sans",system-ui,sans-serif;box-shadow:0 1px 0 var(--line),0 6px 18px -10px rgba(0,0,0,.25)}
+.family-shell .family-back:active{background:var(--accent-soft)}
+.family-page-intro{margin:0 0 16px;font-size:17px;color:var(--ink-2)}
+.family-shell.narrow .family-back{min-height:44px;padding:0 14px 0 8px;font-size:16px}
+.family-shell.narrow .family-greeting.has-back{gap:10px}
+.family-shell .family-header>div.family-greeting.has-back{display:flex;flex-direction:row;align-items:center;gap:18px}
+
+/* Einstellungen wie auf dem iPad: links die gruppierte Liste, rechts die gewählte Seite. Am Handy erst Liste, dann Seite. */
+.family-settings-split{flex:1;min-height:0;display:grid;grid-template-columns:340px minmax(0,1fr);gap:22px;align-items:stretch}
+.family-settings-list{min-height:0;overflow:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:18px;padding:4px 2px 12px}
+.family-settings-list h3{margin:0 0 8px 16px;font-size:14px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-2)}
+.family-settings-list ul{list-style:none;margin:0;padding:6px;border-radius:24px;background:var(--solid);display:flex;flex-direction:column;gap:2px}
+.family-shell .family-settings-list button{display:flex;align-items:center;gap:14px;width:100%;min-height:66px;padding:8px 12px;border:0;border-radius:18px;background:transparent;color:var(--ink);text-align:left;box-shadow:none}
+.family-shell .family-settings-list button[aria-current=page]{background:var(--accent-soft)}
+.family-shell .family-settings-list button[aria-current=page] strong{color:var(--accent)}
+.family-settings-icon{display:grid;place-items:center;flex:none;width:40px;height:40px;border-radius:12px;color:#fff}
+.family-settings-label{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.family-settings-label strong{font-size:18px;font-weight:600;line-height:1.2}
+.family-settings-label small{font-size:14px;color:var(--ink-2);line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.family-settings-chevron{flex:none;color:var(--ink-3);display:none}
+.family-settings-detail{min-height:0;min-width:0;overflow:auto;overscroll-behavior:contain;padding-bottom:12px}
+.family-settings-detail>.family-settings,.family-settings-detail>section,.family-settings-detail>div{max-width:none}
+/* Zeilen mit Schalter (Anzeige) */
+.family-settings-rows{display:flex;flex-direction:column;gap:0;padding:8px 10px}
+.family-shell .family-settings-row{display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%;min-height:76px;padding:12px 16px;border:0;border-radius:18px;background:transparent;color:var(--ink);text-align:left;box-shadow:none}
+.family-shell .family-settings-row+.family-settings-row{border-top:1px solid var(--line);border-radius:0}
+.family-settings-row>span{display:flex;flex-direction:column;gap:3px}
+.family-settings-row strong{font-size:19px;font-weight:600}
+.family-settings-row small{font-size:15px;color:var(--ink-2)}
+.family-settings-row em{font-style:normal;font-weight:600;color:var(--accent)}
+.family-toggle{position:relative;flex:none;width:58px;height:34px;border-radius:999px;background:var(--rail);transition:background .2s}
+.family-toggle::after{content:"";position:absolute;top:3px;left:3px;width:28px;height:28px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .2s}
+.family-toggle.on{background:#34c759}
+.family-toggle.on::after{transform:translateX(24px)}
+.family-waste-settings{display:flex;flex-direction:column;gap:12px}
+/* Handy: eine Spalte, Liste mit Pfeil, Unterseite ersetzt die Liste */
+.family-shell.narrow .family-settings-split{grid-template-columns:minmax(0,1fr);flex:none}
+.family-shell.narrow .family-settings-split:not(.at-menu) .family-settings-list{display:none}
+.family-shell.narrow .family-settings-list,.family-shell.narrow .family-settings-detail{overflow:visible}
+.family-shell.narrow .family-settings-chevron{display:block}
+/* Liste passt am 14-Zoll-Display ganz auf den Bildschirm */
+.family-shell:not(.narrow) .family-settings-list{gap:12px}
+.family-shell:not(.narrow) .family-settings-list button{min-height:56px;padding:6px 12px}
+.family-shell:not(.narrow) .family-settings-list h3{margin-bottom:6px;font-size:13px}
+.family-shell:not(.narrow) .family-settings-icon{width:36px;height:36px;border-radius:10px}
+.family-shell:not(.narrow) .family-settings-label strong{font-size:17px}
+.family-shell:not(.narrow) .family-settings-label small{font-size:13px}
+.family-shell .family-waste-settings button{display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%;min-height:64px;padding:12px 18px;border-radius:18px;text-align:left}
+.family-shell .family-waste-settings button strong{font-size:18px}
+.family-shell .family-waste-settings button span{font-size:15px;color:var(--ink-2)}
+
+/* Software und Updates */
+.family-software{display:flex;flex-direction:column;gap:18px}
+.family-software-current{display:flex;align-items:center;gap:20px}
+.family-software-logo{display:grid;place-items:center;flex:none;width:64px;height:64px;border-radius:18px;background:#2f5fd0;color:#fff}
+.family-software-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:4px}
+.family-software-text h3,.family-software-update h3{margin:0;font-size:24px}
+.family-software-text p{margin:0;font-size:17px}
+.family-software-text small,.family-software-update small{font-size:14px;color:var(--ink-2)}
+.family-software-update-head{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap}
+.family-software-confirm{display:flex;gap:10px;flex-wrap:wrap}
+.family-software-notes{margin-top:14px;padding:14px 18px;border-radius:18px;background:var(--fill)}
+.family-software-notes p{margin:6px 0 0;font-size:17px;line-height:1.5;white-space:pre-wrap;overflow-wrap:anywhere}
+.family-software-job{display:flex;flex-direction:column;gap:10px}
+.family-software-job.failed{background:color-mix(in srgb,var(--red) 10%,var(--solid))}
+.family-software-job.done{background:color-mix(in srgb,var(--good) 12%,var(--solid))}
+.family-software-job-head{display:flex;justify-content:space-between;gap:12px;font-size:18px}
+.family-software-job p{margin:0;font-size:16px}
+.family-software-job small{font-size:14px;color:var(--ink-2)}
+.family-software-bar{height:10px;border-radius:999px;background:var(--fill);overflow:hidden}
+.family-software-bar i{display:block;height:100%;border-radius:inherit;background:var(--accent);transition:width .6s ease}
+.family-software-auto{display:flex;flex-direction:column;gap:8px}
+.family-software-auto .family-hint{margin:0}
+.family-software-about h3{margin:0 0 8px;font-size:18px}
+.family-software-about ul{margin:0;padding-left:20px;display:flex;flex-direction:column;gap:6px;font-size:15px;color:var(--ink-2);line-height:1.45}
+.family-shell.narrow .family-software-current{flex-wrap:wrap}
+.family-shell:not(.narrow) .family-settings-list{gap:10px}
+.family-shell:not(.narrow) .family-settings-list button{min-height:52px;padding:5px 12px}
+.family-shell:not(.narrow) .family-settings-list ul{padding:5px}
+.family-shell:not(.narrow) .family-settings-list{padding-bottom:2px}

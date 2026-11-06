@@ -1,0 +1,24 @@
+[Unit]
+Description=HouseDash Telegram phone bridge
+After=network-online.target user@@UID@.service housedash-kiosk.service
+Wants=network-online.target user@@UID@.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=@USER@
+WorkingDirectory=@HOME@/housedash/phone
+Environment=HOME=@HOME@
+Environment=XDG_RUNTIME_DIR=/run/user/@UID@
+# NTgCalls otherwise uses PulseAudio's ~2-second default playback target.
+Environment=PULSE_LATENCY_MSEC=60
+Environment=HOUSEDASH_PHONE_STATE=@HOME@/.local/share/housedash-phone
+ExecStart=@HOME@/.local/share/housedash-phone/venv/bin/python @HOME@/housedash/phone/bridge.py
+Restart=always
+RestartSec=5
+TimeoutStopSec=15
+UMask=0077
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

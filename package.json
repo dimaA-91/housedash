@@ -1,0 +1,54 @@
+{
+  "name": "housedash",
+  "version": "0.0.4",
+  "description": "HouseDash: a self-hosted family dashboard for a Raspberry Pi wall display and phones.",
+  "license": "MIT",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dimaA-91/housedash.git"
+  },
+  "engines": {
+    "node": ">=22",
+    "npm": ">=11.6.3"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "NODE_OPTIONS='--max-old-space-size=3072' next build",
+    "start": "next start",
+    "lint": "eslint src scripts/analyze-housedash-deps.mjs scripts/generate-calendar-icons.mjs scripts/release-housedash.mjs",
+    "icons:build": "node scripts/generate-calendar-icons.mjs",
+    "deps:inventory": "node scripts/analyze-housedash-deps.mjs"
+  },
+  "dependencies": {
+    "archiver": "^8.0.0",
+    "date-fns": "^4.1.0",
+    "image-size": "^2.0.4",
+    "next": "^16.4.3",
+    "node-ical": "^0.27.1",
+    "qrcode.react": "^4.2.0",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5",
+    "sharp": "^0.35.4",
+    "yauzl": "^3.4.0"
+  },
+  "devDependencies": {
+    "@fortawesome/fontawesome-free": "^7.2.0",
+    "@types/archiver": "^8.0.0",
+    "@types/node": "^25",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/yauzl": "^3.4.0",
+    "eslint": "^9.39.4",
+    "eslint-config-next": "^16.4.3",
+    "typescript": "^6.0.2"
+  },
+  "overrides": {
+    "readdir-glob": {
+      "minimatch": "^11.0.5"
+    },
+    "@typescript-eslint/typescript-estree": {
+      "minimatch": "^11.0.5"
+    }
+  }
+}

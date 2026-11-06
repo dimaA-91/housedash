@@ -1,0 +1,28 @@
+[Unit]
+Description=HouseDash touchscreen kiosk
+After=systemd-user-sessions.service network-online.target docker.service
+Wants=network-online.target
+Conflicts=getty@tty1.service
+StartLimitIntervalSec=0
+
+[Service]
+Type=simple
+User=@USER@
+PAMName=login
+Environment=XDG_RUNTIME_DIR=/run/user/@UID@
+Environment=HOUSEDASH_URL=http://127.0.0.1:3000/family
+WorkingDirectory=@HOME@
+TTYPath=/dev/tty1
+StandardInput=tty
+TTYReset=yes
+TTYVHangup=yes
+UtmpIdentifier=tty1
+ExecStart=/usr/bin/dbus-run-session /usr/bin/labwc -s @HOME@/housedash/scripts/housedash-browser.sh
+ExecStopPost=-/usr/bin/pkill -u @USER@ -f "^/bin/sh @HOME@/housedash/scripts/housedash-browser.sh$"
+ExecStopPost=-/usr/bin/pkill -u @USER@ -f "^/usr/lib/chromium/chromium .*--user-data-dir=@HOME@/.local/share/housedash-chromium"
+ExecStopPost=-/usr/bin/pkill -u @USER@ -f "^/usr/bin/labwc -s @HOME@/housedash/scripts/housedash-browser.sh$"
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

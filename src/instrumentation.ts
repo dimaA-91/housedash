@@ -1,0 +1,22 @@
+/**
+ * Next.js instrumentation hook — runs once when the server boots.
+ * Installs the client-IP stamping patch so security decisions
+ * (IP allowlist, IP-restrict gate, login rate limiting) see the real
+ * TCP peer address instead of spoofable proxy headers.
+ */
+export async function register(): Promise<void> {
+  if (process.env.NEXT_RUNTIME === 'nodejs') {
+    const { pinDataRoot } = await import('./lib/data-transaction');
+    pinDataRoot();
+    const { installClientIpStamping } = await import('./lib/server-ip-patch');
+    installClientIpStamping();
+    // Clear temp files from a write that died mid-flight (a full card, a
+    // power cut). Nothing else ever removes them.
+    const { sweepStaleTempFiles } = await import('./lib/json-store');
+    await sweepStaleTempFiles().catch(() => {});
+    if (process.env.HOUSEDASH_SKIP_DATA_INIT !== '1') {
+      const { initializeHouseDash } = await import('./lib/housedash-bootstrap');
+      await initializeHouseDash();
+    }
+  }
+}

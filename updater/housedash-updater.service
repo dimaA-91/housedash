@@ -1,0 +1,24 @@
+[Unit]
+Description=HouseDash updater (signierte Versionen aus GitHub Releases)
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=@USER@
+WorkingDirectory=@HOME@/housedash
+Environment=HOME=@HOME@
+Environment=HOUSEDASH_APP_DIR=@HOME@/housedash
+Environment=HOUSEDASH_UPDATE_STATE=@HOME@/.local/share/housedash-update
+Environment=HOUSEDASH_BIND_ADDRESS=0.0.0.0
+ExecStart=/usr/bin/python3 @HOME@/housedash/updater/housedash-updater.py
+Restart=always
+RestartSec=5
+# Eine laufende Installation nicht hart beenden: deploy-pi.sh braucht Zeit für Sicherung und Start.
+TimeoutStopSec=30
+KillMode=process
+UMask=0077
+Nice=5
+
+[Install]
+WantedBy=multi-user.target

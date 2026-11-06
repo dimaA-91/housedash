@@ -1,0 +1,132 @@
+/* Family Brain als Vollbild-Anruf im HouseDash-Stil: dunkle Fläche wie "Nächster Geburtstag" auf Home, in der Mitte der Kreis von Home und
+   darunter groß, was gesprochen wird. Der Hintergrund ist leicht durchscheinend, die Schrift bleibt gut lesbar. Kein Weichzeichner (der Pi). */
+.family-shell .family-intelligence-overlay{padding:0;background:transparent;align-items:stretch;justify-content:stretch}
+/* Die Bildschirmtastatur darf weder das Overlay verschieben noch die Seite dahinter: Die alten Regeln dafür (Abstand unten für Formulare)
+   gelten nicht für das Gespräch. Sonst springen die Karten auf Home hoch, sobald die Tastatur aufgeht. */
+.family-shell.family-shell:has(.touch-keyboard) .family-intelligence-overlay{padding:0;align-items:stretch}
+.family-shell.family-shell:has(.family-intelligence-overlay) .family-content{padding-bottom:0}
+.family-shell .family-intelligence-dialog{width:100vw;max-width:none;height:100dvh;max-height:none;padding:0;overflow:hidden;border-radius:0;box-shadow:none;background:radial-gradient(70% 55% at 50% 26%,rgba(47,95,208,.22),rgba(47,95,208,0) 70%),#14161b}
+.family-dark .family-intelligence-dialog{background:radial-gradient(70% 55% at 50% 26%,rgba(47,95,208,.2),rgba(47,95,208,0) 70%),#0a0b0e}
+.family-shell .family-conversation{--c-ink:#fff;--c-muted:#b9bcc4;--c-fill:rgba(255,255,255,.1);--c-line:rgba(255,255,255,.14);--c-accent:#8fb3ff;--c-soft:rgba(143,179,255,.2);display:flex;flex-direction:column;gap:0;width:100%;max-width:900px;height:100%;margin:0 auto;padding:0;overflow:hidden;background:transparent;color:var(--c-ink);font-family:"DM Sans",system-ui,sans-serif}
+.family-shell .family-conversation button{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:52px;border:0;border-radius:20px;padding:10px 20px;background:var(--c-fill);color:var(--c-ink);font:600 17px/1.25 "DM Sans",system-ui,sans-serif;box-shadow:none;cursor:pointer}
+.family-shell .family-conversation button:disabled{opacity:.45;cursor:default}
+.family-shell .family-conversation button:focus-visible,.family-conversation input:focus-visible,.family-conversation summary:focus-visible{outline:3px solid var(--c-accent);outline-offset:3px}
+.family-conversation svg{flex:none}
+.family-shell .call-top{display:flex;align-items:center;justify-content:center;gap:10px;padding:26px 70px 0;font-size:16px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--c-muted);flex:none}
+.call-dot{width:9px;height:9px;border-radius:50%;background:#6a6f78}
+.call-dot.on{background:#3aa56b}
+.family-shell .family-conversation button.call-close{position:fixed;right:24px;top:20px;width:56px;height:56px;min-height:56px;padding:0;border-radius:50%;background:var(--c-fill);color:var(--c-ink);z-index:2}
+
+/* Der Kreis von Home, groß. --lvl (Lautstärke) lässt ihn mit der Stimme schwingen. */
+.family-shell .family-conversation button.call-stage{position:relative;isolation:isolate;display:grid;place-items:center;flex:none;width:260px;height:260px;min-height:0;margin:34px auto 22px;padding:0;border-radius:50%;background:transparent;transition:width .2s ease,height .2s ease,margin .2s ease}
+.family-shell .family-conversation button.call-stage[tabindex="-1"]{cursor:default}
+.call-orb::before{content:"";position:absolute;inset:-26%;z-index:-2;border-radius:50%;background:radial-gradient(closest-side,rgba(143,179,255,.34),rgba(143,179,255,0));scale:calc(1 + var(--lvl,0) * .25);transition:scale .09s linear}
+.call-orb i{position:absolute;inset:0;border-radius:43% 57% 62% 38%;z-index:-1;background:linear-gradient(145deg,#a0b9f9,#d8b4ed 48%,#95d9cc);opacity:.88;animation:call-wobble 8s ease-in-out infinite;scale:calc(.94 + var(--lvl,0) * .12);transition:scale .09s linear}
+.call-orb i:nth-child(2){inset:16%;animation-delay:-2.8s;animation-direction:reverse;background:linear-gradient(325deg,#a0b9f9,#d8b4ed 48%,#95d9cc);opacity:.78}
+.call-orb-core{display:grid;place-items:center;width:86px;height:86px;border-radius:50%;background:rgba(20,22,27,.5);color:#fff}
+.call-orb-core svg{width:38px;height:38px}
+@keyframes call-wobble{0%,100%{transform:rotate(0deg)}50%{transform:rotate(38deg)}}
+@keyframes call-morph{0%,100%{border-radius:43% 57% 62% 38%}25%{border-radius:60% 40% 45% 55%}50%{border-radius:38% 62% 56% 44%}75%{border-radius:55% 45% 40% 60%}}
+@keyframes call-think{0%,100%{transform:rotate(0deg) scale(.94)}50%{transform:rotate(90deg) scale(1.06)}}
+.call-orb.hearing i{animation-duration:2.4s;scale:calc(.94 + var(--lvl,0) * .2)}
+.call-orb.thinking i,.call-orb.connecting i{animation:call-think 1.7s ease-in-out infinite}
+.call-orb.thinking i:nth-child(2),.call-orb.connecting i:nth-child(2){animation-delay:-.6s}
+.call-orb.speaking i{animation:call-wobble 1.8s ease-in-out infinite,call-morph 1.3s ease-in-out infinite;scale:calc(.86 + var(--lvl,0) * .3)}
+.call-orb.speaking i:nth-child(2){animation-delay:-.7s,-.4s;scale:calc(.86 + var(--lvl,0) * .26)}
+.call-orb.speaking::before,.call-orb.hearing::before{scale:calc(1 + var(--lvl,0) * .45)}
+
+/* Text in der Mitte: groß und ruhig, auf der dunklen Fläche immer lesbar */
+.call-caption{flex:1 1 auto;min-height:120px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;width:100%;max-width:780px;margin:0 auto;padding:6px 40px 14px;text-align:center;overflow:auto;overscroll-behavior:contain}
+.call-status{margin:0;font-size:30px;font-weight:700;letter-spacing:-.02em;line-height:1.3;color:var(--c-ink)}
+.call-you{margin:0;font-size:21px;line-height:1.4;color:var(--c-muted);max-width:100%;overflow-wrap:anywhere}
+.call-brain{margin:0;font-size:42px;font-weight:700;line-height:1.2;letter-spacing:-.025em;max-width:100%;overflow-wrap:anywhere;text-shadow:0 2px 24px rgba(0,0,0,.35)}
+.family-conversation-cursor{display:inline-block;height:1em;width:4px;margin-left:5px;background:var(--c-accent);vertical-align:middle}
+.call-actions{display:flex;flex-direction:column;gap:10px;width:min(620px,calc(100% - 40px));margin:0 auto;padding:0 0 12px;flex:none;max-height:34%;overflow:auto}
+.family-shell .family-conversation-action{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;border:0;border-radius:24px;padding:14px 18px;background:var(--c-soft)}
+.family-conversation-action>div{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1 1 200px}
+.family-conversation-action strong{display:flex;align-items:center;gap:10px;font-size:18px;line-height:1.4;overflow-wrap:anywhere}
+.family-conversation-action small{font-size:15px;color:var(--c-muted)}
+.family-conversation-action>span{display:flex;gap:8px;flex-wrap:wrap}
+.family-shell .family-conversation .family-primary{background:#2f5fd0;color:#fff}
+.family-conversation-saved summary{font-size:14px;cursor:pointer;min-height:36px;display:flex;align-items:center;text-decoration:underline}
+.family-conversation-saved p{font-size:15px;white-space:pre-wrap;overflow-wrap:anywhere;margin:5px 0}
+.family-conversation-notice{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;width:min(620px,calc(100% - 40px));margin:0 auto 12px;padding:12px 18px;border-radius:24px;background:var(--c-fill);flex:none}
+.family-conversation-notice.is-error{background:#2a1215;color:#ff8a80}
+.family-conversation-notice p{flex:1 1 220px;font-size:15px;line-height:1.45;margin:0;overflow-wrap:anywhere}
+.family-conversation-notice button{flex:none;min-height:46px}
+.family-shell .family-conversation-input{display:flex;gap:10px;width:min(620px,calc(100% - 40px));margin:0 auto 12px;flex:none}
+.family-shell .family-conversation-input input{flex:1;min-width:0;min-height:60px;border:0;border-radius:20px;background:var(--c-fill);color:#fff;font:400 20px/1.4 "DM Sans",system-ui,sans-serif;padding:12px 20px;box-shadow:none}
+.family-shell .family-conversation-input input::placeholder{color:var(--c-muted)}
+.family-shell .family-conversation-input button{background:#2f5fd0;color:#fff;width:60px;padding:0}
+.family-shell .family-conversation-messages{display:flex;flex-direction:column;gap:10px;flex:0 1 auto;width:min(620px,calc(100% - 40px));margin:0 auto 12px;max-height:40%;min-height:80px;overflow:auto;overscroll-behavior:contain;padding:10px 14px;border-radius:24px;background:rgba(255,255,255,.06)}
+.family-conversation-messages article{max-width:92%;align-self:flex-start;min-width:0}
+.family-conversation-messages article>strong{display:block;margin:0 0 4px;font-size:13px;font-weight:700;color:var(--c-muted)}
+.family-shell .family-conversation .from-you,.family-shell .family-conversation .from-family{background:transparent}
+.family-conversation-messages article>p{padding:10px 14px;margin:0;border-radius:18px;font-size:17px;line-height:1.45;background:var(--c-fill);white-space:pre-wrap;overflow-wrap:anywhere}
+.family-conversation-messages .from-family>p{background:var(--c-soft)}
+.family-conversation-empty{margin:auto;text-align:center;font-size:16px;color:var(--c-muted)}
+.call-more{display:flex;flex-direction:column;gap:2px;width:min(620px,calc(100% - 40px));margin:0 auto 12px;padding:6px;border-radius:28px;background:var(--c-fill);flex:none}
+.family-shell .family-conversation .call-more button{justify-content:flex-start;background:transparent;min-height:56px;font-weight:500;font-size:18px;border-radius:22px}
+.family-shell .family-conversation .call-more button[aria-pressed=true]{background:var(--c-soft);color:var(--c-accent)}
+.call-bar{display:flex;flex-direction:column;align-items:center;gap:8px;padding:10px 20px 26px;flex:none}
+.family-shell .family-conversation button.call-end{width:96px;height:96px;min-height:96px;padding:0;border-radius:50%;background:#d8232f;color:#fff}
+.family-conversation button.call-end svg{width:40px;height:40px}
+.family-shell .family-conversation button.call-more-toggle{min-height:48px;padding:6px 18px;background:transparent;color:var(--c-muted);font-weight:600;font-size:17px;border-radius:999px}
+
+/* Mehr, Schreiben und Verlauf liegen als Fläche über dem Gespräch. Darunter bewegt sich nichts: der Kreis bleibt so groß, der Text steht still.
+   Am Display mit Bildschirmtastatur sitzt die Fläche direkt über der Tastatur (der rote Knopf liegt dann darunter, das X oben rechts bleibt). */
+.family-shell .family-conversation{position:relative;--sheet-bottom:196px}
+.family-shell .family-conversation.reserve-keyboard{--sheet-bottom:366px}
+.family-shell .family-conversation .call-more,.family-shell .family-conversation .family-conversation-input,.family-shell .family-conversation .family-conversation-messages{position:absolute;left:0;right:0;bottom:var(--sheet-bottom);z-index:3;margin:0 auto;width:min(620px,calc(100% - 40px))}
+.family-shell .family-conversation .call-more{background:rgba(44,47,55,.98);box-shadow:0 12px 40px rgba(0,0,0,.4)}
+.family-shell .family-conversation .family-conversation-input{padding:8px;border-radius:30px;background:rgba(44,47,55,.98);box-shadow:0 12px 40px rgba(0,0,0,.4)}
+.family-shell .family-conversation .family-conversation-input input{background:rgba(255,255,255,.08)}
+.family-shell .family-conversation .family-conversation-messages{max-height:calc(100% - var(--sheet-bottom) - 100px);background:rgba(44,47,55,.98);box-shadow:0 12px 40px rgba(0,0,0,.4);padding:12px 14px}
+.family-shell .family-conversation button.call-sheet-close{width:60px;padding:0;background:transparent;color:var(--c-muted)}
+.family-shell .family-conversation .family-conversation-input button[type=submit]{border-radius:22px}
+
+@media(max-width:600px){
+  .family-shell .family-conversation button.call-stage{width:190px;height:190px;margin:26px auto 14px}
+  .family-shell .family-conversation button.call-close{right:14px;top:14px;width:48px;height:48px;min-height:48px}
+  .call-orb-core{width:66px;height:66px}
+  .call-orb-core svg{width:30px;height:30px}
+  .call-caption{padding:4px 22px 8px}
+  .call-status{font-size:24px}
+  .call-brain{font-size:28px}
+  .call-you{font-size:17px}
+  .family-shell .family-conversation button.call-end{width:80px;height:80px;min-height:80px}
+  .call-bar{padding-bottom:20px}
+  .family-shell .family-conversation{--sheet-bottom:176px}
+}
+@media(max-height:680px){
+  .family-shell .call-top{padding-top:14px}
+  .family-shell .family-conversation button.call-stage{width:120px;height:120px;margin:10px auto 4px}
+  .call-orb-core{width:46px;height:46px}
+  .call-orb-core svg{width:24px;height:24px}
+  .call-brain{font-size:24px}
+  .call-bar{padding-bottom:12px}
+  .family-shell .family-conversation button.call-end{width:64px;height:64px;min-height:64px}
+}
+@media(prefers-reduced-motion:reduce){.call-orb i,.call-orb::before{animation:none!important;transition:none}}
+
+/* Solange eine Fläche (Mehr, Schreiben, Verlauf) offen ist, tritt der Text dahinter zurück, ohne sich zu bewegen */
+.family-conversation:has(.call-more,.family-conversation-input,.family-conversation-messages) .call-caption{opacity:.18;transition:opacity .2s ease}
+.family-conversation:has(.call-more,.family-conversation-input,.family-conversation-messages) .call-actions{position:relative;z-index:4}
+
+/* Ruhiger Text: oben verankert (wächst nur nach unten), feste Plätze, keine Neuumbrüche, kein Scrollbalken */
+.family-shell .call-caption{justify-content:flex-start;gap:12px;scrollbar-width:none;padding-top:10px}
+.call-caption::-webkit-scrollbar{display:none}
+.call-status,.call-you{flex:none}
+.call-status{min-height:1.3em}
+.call-you{min-height:1.4em;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden}
+.call-status.is-empty,.call-you.is-empty{visibility:hidden}
+.call-brain{flex:none;text-wrap:wrap;min-height:1.2em}
+.call-brain:empty{display:none}
+
+/* Beim Schreiben bleibt der Text sichtbar: er endet oberhalb des Eingabefelds und wird dafür kleiner */
+.family-conversation:has(.family-conversation-input) .call-caption{opacity:1;margin-bottom:calc(var(--sheet-bottom) - 106px)}
+.family-conversation:has(.family-conversation-input) .call-brain{font-size:28px}
+.family-conversation:has(.family-conversation-input) .call-status{font-size:22px}
+.call-status{color:var(--c-muted);font-size:22px;font-weight:600}
+.call-brain{margin-top:2px}
+.family-conversation:has(.family-conversation-input) .call-caption{-webkit-mask-image:linear-gradient(#000 calc(100% - 28px),transparent);mask-image:linear-gradient(#000 calc(100% - 28px),transparent)}

@@ -1,0 +1,74 @@
+name: housedash
+services:
+  https:
+    image: housedash-https:latest
+    build: ./https
+    environment:
+      # <hostname>.local is the address phones use (mDNS). The certificate is issued for this name.
+      HOUSEDASH_HOSTNAME: ${HOUSEDASH_HOSTNAME:-housedash}
+    ports:
+      - "${HOUSEDASH_BIND_ADDRESS:-127.0.0.1}:80:8080"
+      - "${HOUSEDASH_BIND_ADDRESS:-127.0.0.1}:443:8443"
+    volumes:
+      - housedash-https-data:/data
+      - housedash-https-config:/config
+    restart: unless-stopped
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+  app:
+    image: housedash-app:latest
+    build: .
+    ports:
+      - "${HOUSEDASH_BIND_ADDRESS:-127.0.0.1}:3000:3000"
+    volumes:
+      - housedash-data:/app/data
+      - housedash-backgrounds:/app/public/backgrounds
+      - housedash-voice-runtime:/run/housedash-voice:ro
+      - type: bind
+        source: ${HOUSEDASH_PHONE_RUNTIME_DIR:-${HOME}/.local/share/housedash-phone/run}
+        target: /run/housedash-phone
+        read_only: true
+        bind:
+          create_host_path: false
+      # Updater-Steuerung (lokaler Unix-Socket des Hostdienstes housedash-updater)
+      - type: bind
+        source: ${HOUSEDASH_UPDATE_RUNTIME_DIR:-${HOME}/.local/share/housedash-update/run}
+        target: /run/housedash-update
+        read_only: true
+        bind:
+          create_host_path: false
+    environment:
+      TZ: Europe/Berlin
+      NEXT_TELEMETRY_DISABLED: "1"
+      HOUSEDASH_CALENDAR_BASE_URL: ${HOUSEDASH_CALENDAR_BASE_URL:-http://housedash.local:3000}
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+volumes:
+  housedash-https-data:
+    name: housedash_https-data
+    external: true
+  housedash-https-config:
+    name: housedash_https-config
+    external: true
+  housedash-voice-runtime:
+    name: housedash_voice-run
+    external: true
+  housedash-data:
+    name: housedash_data
+    external: true
+  housedash-backgrounds:
+    name: housedash_backgrounds
+    external: true

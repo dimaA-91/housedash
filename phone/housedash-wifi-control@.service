@@ -1,0 +1,21 @@
+[Unit]
+Description=HouseDash WLAN action
+
+[Service]
+ExecStart=/usr/bin/python3 -I /usr/local/lib/housedash/wifi-control.py
+StandardInput=socket
+StandardOutput=socket
+StandardError=journal
+RuntimeDirectory=housedash-wifi-control
+RuntimeDirectoryMode=0700
+RuntimeDirectoryPreserve=yes
+UMask=0077
+RuntimeMaxSec=90
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateNetwork=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/run/housedash-wifi-control
+RestrictAddressFamilies=AF_UNIX
+CapabilityBoundingSet=

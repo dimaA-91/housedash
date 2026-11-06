@@ -1,0 +1,33 @@
+name: housedash-assistant
+services:
+  voice:
+    image: housedash-voice:latest
+    build: ./voice
+    volumes:
+      - voice-data:/state
+      - voice-runtime:/run/housedash-voice
+      # Code als Datei statt im Image: Eine Code-Änderung braucht so keine Übertragung von Gigabytes, nur einen Neustart.
+      - ./voice/broker.py:/opt/housedash-voice/broker.py:ro
+      - ./voice/schema.json:/opt/housedash-voice/schema.json:ro
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:uid=1000,gid=1000,mode=1770,size=64m
+    environment:
+      TZ: Europe/Berlin
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "2"
+volumes:
+  voice-data:
+    name: housedash_voice-data
+    external: true
+  voice-runtime:
+    name: housedash_voice-run
+    external: true

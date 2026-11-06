@@ -1,0 +1,9 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["action", "message"],
+  "properties": {
+    "action": {"type": "string", "enum": ["answer", "clarify"]},
+    "message": {"type": "string"}
+  }
+}

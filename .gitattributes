@@ -1,0 +1,9 @@
+# Files that run or are read on the Pi keep Unix line endings after Windows checkouts.
+*.sh text eol=lf
+*.py text eol=lf
+*.service text eol=lf
+*.socket text eol=lf
+Dockerfile text eol=lf
+Caddyfile text eol=lf
+*.yaml text eol=lf
+*.pub text eol=lf

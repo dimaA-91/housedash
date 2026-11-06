@@ -1,0 +1,524 @@
+import { createJsonStore } from '@/lib/json-store';
+import { withDataTransaction } from '@/lib/data-transaction';
+import { readConfig } from '@/lib/config';
+import { toTZWallTime } from '@/lib/timezone';
+import { isValidISODate } from '@/lib/api-utils';
+import { uuid } from '@/lib/uuid';
+import { RefusalError, type RefusalParams } from '@/lib/refusal';
+import {
+  TODO_LIMITS,
+  type TodoData,
+  type TodoList,
+  type TodoListItem,
+  type TodoRepeat,
+} from '@/types/todos';
+
+/** The home's time zone: repeats and expiry follow the family's calendar day. */
+async function householdTimezone(): Promise<string | undefined> {
+  try { return (await readConfig()).settings.timezone; } catch { return undefined; }
+}
+
+
+/**
+ * Shared to-do lists: `data/todos.json`.
+ *
+ * Lists are family data the way chores and meals are. The phone remote, the
+ * wall and the editor all read and write this one store, a To-Do module only
+ * points at a list by id, and a check-off from any surface never touches
+ * `config.json` (which the editor loads whole and PUTs back whole, so any
+ * other writer to it races an open editor).
+ *
+ * Before lists were shared, items lived inline on each module instance and
+ * wall taps were kept in a side store (`todo-state.json`) purely to stay out
+ * of `config.json`. The first read after upgrade folds both into this store
+ * (`runFold`), then strips the inline items off the modules.
+ */
+
+const EMPTY: TodoData = { lists: [] };
+
+const store = createJsonStore<TodoData>({
+  path: 'data/todos.json',
+  defaultValue: EMPTY,
+  backup: true,
+  errorHandling: 'throw-corrupt',
+});
+
+/**
+ * Why a list write was turned down. Each one has a sentence in the `core`
+ * dictionary under `refusals.lists`, shown on the phone and in the editor.
+ * `lists.badRequest` covers a body the app itself never sends; its English
+ * `error` still says exactly what was wrong.
+ */
+export type TodoRefusalCode =
+  | 'lists.nameRequired'
+  | 'lists.nameTooLong'
+  | 'lists.textRequired'
+  | 'lists.textTooLong'
+  | 'lists.badDate'
+  | 'lists.badColor'
+  | 'lists.listGone'
+  | 'lists.itemGone'
+  | 'lists.tooManyLists'
+  | 'lists.tooManyItems'
+  | 'lists.orderChanged'
+  | 'lists.badRequest';
+
+/** Thrown by the pure operations below; the route wrapper answers with its code. */
+export class TodoError extends RefusalError {
+  constructor(status: number, code: TodoRefusalCode, message: string, params?: RefusalParams) {
+    super(status, code, message, params ? { params } : {});
+    this.name = 'TodoError';
+  }
+}
+
+// ── Reads and writes ──
+
+/**
+ * Read every list, folding in pre-v2 inline items on first use, firing any
+ * due repeat schedule and sweeping expired done items. All three are
+ * persisted, so they happen once rather than on every poll, and a read
+ * never shows an item a write would have swept first: the phone reorders
+ * and unchecks what it was shown, so the two have to agree.
+ */
+async function readTodoDataUnlocked(): Promise<TodoData> {
+  const current = await store.read();
+  const now = new Date();
+  if (!anyRepeatDue(current.lists, now, await householdTimezone()) && expireCompletedItems(current, now) === current) return current;
+  return updateTodoData((data) => data);
+}
+
+/**
+ * Atomic read-modify-write. The fold-in and due repeats are applied to the
+ * mutator's input, so every writer sees current data. Returning the input
+ * unchanged skips the disk write unless a fold-in or repeat ran.
+ */
+async function updateTodoDataUnlocked(
+  mutator: (current: TodoData) => TodoData | Promise<TodoData>,
+): Promise<TodoData> {
+  return store.updateAtomic(async (current) => {
+    let data = current;
+    let forced = false;
+    // One `now` for both passes so an item cannot be unchecked by the repeat
+    // and expired by the sweep in the same cycle on two different clocks.
+    const now = new Date();
+    const reset = applyDueRepeats(data, now, await householdTimezone());
+    if (reset !== data) { data = reset; forced = true; }
+    const expired = expireCompletedItems(data, now);
+    if (expired !== data) { data = expired; forced = true; }
+    const result = await mutator(data);
+    if (result === data && !forced) return current;
+    return result;
+  });
+}
+
+// ── Restore validation ──
+
+const REPEATS: ReadonlySet<TodoRepeat> = new Set(['never', 'daily', 'weekly']);
+
+const HEX_COLOR = /^#[0-9a-f]{6}$/i;
+
+/**
+ * Whether `raw` is a `TodoData` the store can serve. A backup restore writes
+ * the file whole, so a malformed bundle would otherwise land on disk and
+ * crash every read after it. Returns a plain-language reason, or null when
+ * the shape is sound.
+ */
+export function validateTodoData(raw: unknown): string | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return 'To-do lists must be an object with a lists array';
+  const data = raw as Record<string, unknown>;
+  if (!Array.isArray(data.lists)) return 'To-do lists must be an object with a lists array';
+  if (data.migratedFromConfig !== undefined && typeof data.migratedFromConfig !== 'boolean') {
+    return 'To-do lists: migratedFromConfig must be true or false';
+  }
+  if (data.lists.length > TODO_LIMITS.maxLists) return `To-do lists: at most ${TODO_LIMITS.maxLists} lists`;
+  const listIds = new Set<string>();
+  for (const [i, entry] of (data.lists as unknown[]).entries()) {
+    const where = `To-do list ${i + 1}`;
+    if (!entry || typeof entry !== 'object') return `${where} must be an object`;
+    const list = entry as Record<string, unknown>;
+    if (typeof list.id !== 'string' || !list.id) return `${where} is missing its id`;
+    if (listIds.has(list.id)) return `${where} repeats the id of another list`;
+    listIds.add(list.id);
+    if (typeof list.name !== 'string' || !list.name.trim()) return `${where} is missing its name`;
+    if (typeof list.slug !== 'string' || !list.slug) return `${where} is missing its slug`;
+    if (!REPEATS.has(list.repeat as TodoRepeat)) return `${where}: repeat must be never, daily or weekly`;
+    if (list.repeatDay !== undefined && (typeof list.repeatDay !== 'number' || !Number.isInteger(list.repeatDay) || list.repeatDay < 0 || list.repeatDay > 6)) {
+      return `${where}: repeatDay must be 0 (Sunday) to 6 (Saturday)`;
+    }
+    if (list.color !== undefined && (typeof list.color !== 'string' || !HEX_COLOR.test(list.color))) return `${where}: color must be a hex colour`;
+    for (const key of ['createdAt', 'updatedAt'] as const) {
+      if (typeof list[key] !== 'string') return `${where} is missing ${key}`;
+    }
+    if (list.lastResetAt !== undefined && typeof list.lastResetAt !== 'string') return `${where}: lastResetAt must be a timestamp`;
+    if (!Array.isArray(list.items)) return `${where} must have an items array`;
+    if (list.items.length > TODO_LIMITS.maxItemsPerList) return `${where}: at most ${TODO_LIMITS.maxItemsPerList} items`;
+    const itemIds = new Set<string>();
+    for (const [j, it] of (list.items as unknown[]).entries()) {
+      const at = `${where}, item ${j + 1}`;
+      if (!it || typeof it !== 'object') return `${at} must be an object`;
+      const item = it as Record<string, unknown>;
+      if (typeof item.id !== 'string' || !item.id) return `${at} is missing its id`;
+      if (itemIds.has(item.id)) return `${at} repeats the id of another item`;
+      itemIds.add(item.id);
+      if (typeof item.text !== 'string') return `${at} is missing its text`;
+      if (typeof item.completed !== 'boolean') return `${at}: completed must be true or false`;
+      if (typeof item.createdAt !== 'string') return `${at} is missing createdAt`;
+      if (item.completedAt !== undefined && typeof item.completedAt !== 'string') return `${at}: completedAt must be a timestamp`;
+      if (item.dueDate !== undefined && (typeof item.dueDate !== 'string' || !isValidISODate(item.dueDate))) return `${at}: dueDate must be YYYY-MM-DD`;
+      if (item.assigneeIds !== undefined && (!Array.isArray(item.assigneeIds) || item.assigneeIds.some((a) => typeof a !== 'string'))) {
+        return `${at}: assigneeIds must be a list of ids`;
+      }
+    }
+  }
+  return null;
+}
+
+// ── Repeat schedules ──
+
+function startOfLocalDay(d: Date): Date {
+  const out = new Date(d);
+  out.setHours(0, 0, 0, 0);
+  return out;
+}
+
+/**
+ * The most recent moment this list's repeat should have fired, or null when
+ * it never repeats. Daily lists reset at midnight; weekly lists at midnight
+ * on `repeatDay`. Midnight is the household's (`timezone`, from Settings),
+ * never the zone of whichever phone last saved the list: a parent travelling
+ * or a phone left on UTC would otherwise move the reset into the afternoon at
+ * home for good. With a `timezone` the result is a wall-clock Date in that
+ * zone (the `toTZWallTime` convention), so compare it only against values
+ * shifted the same way.
+ */
+export function lastRepeatBoundary(
+  list: Pick<TodoList, 'repeat' | 'repeatDay'>,
+  now: Date,
+  timezone?: string,
+): Date | null {
+  if (list.repeat !== 'daily' && list.repeat !== 'weekly') return null;
+  const boundary = startOfLocalDay(toTZWallTime(now, timezone));
+  if (list.repeat === 'weekly') {
+    const day = typeof list.repeatDay === 'number' ? ((list.repeatDay % 7) + 7) % 7 : 0;
+    boundary.setDate(boundary.getDate() - ((boundary.getDay() - day + 7) % 7));
+  }
+  return boundary;
+}
+
+function repeatIsDue(list: TodoList, now: Date, timezone?: string): boolean {
+  const boundary = lastRepeatBoundary(list, now, timezone);
+  if (!boundary) return false;
+  const last = toTZWallTime(new Date(list.lastResetAt ?? list.createdAt), timezone);
+  return last < boundary;
+}
+
+function anyRepeatDue(lists: TodoList[], now: Date, timezone?: string): boolean {
+  return lists.some((l) => repeatIsDue(l, now, timezone));
+}
+
+/**
+ * Completed items are dropped once they are this old. Repeating lists uncheck
+ * on their own boundary, so this only ever reaches a `never` list that nobody
+ * clears by hand: a grocery list checked off week after week grew forever and
+ * would eventually hit the hard `maxItemsPerList` cap, at which point adding
+ * an item starts failing. One week, so a checked-off task stays visible for a while and then goes. Shorter than the 90 days chores and rewards keep,
+ * because nothing computes streaks or history from a finished to-do.
+ */
+export const COMPLETED_TTL_DAYS = 7;
+
+/** Drop completed items past `COMPLETED_TTL_DAYS`, returning `data` when none are. */
+export function expireCompletedItems(data: TodoData, now: Date): TodoData {
+  const cutoff = now.getTime() - COMPLETED_TTL_DAYS * 24 * 60 * 60 * 1000;
+  let touched = false;
+  const lists = data.lists.map((list) => {
+    const kept = list.items.filter((item) => {
+      if (!item.completed) return true;
+      // No usable timestamp means a pre-v2 fold-in or a hand-edited file.
+      // Keep it: there is no evidence it is old, and guessing deletes real work.
+      if (!item.completedAt) return true;
+      const at = Date.parse(item.completedAt);
+      return Number.isNaN(at) || at >= cutoff;
+    });
+    if (kept.length === list.items.length) return list;
+    touched = true;
+    return { ...list, items: kept, updatedAt: now.toISOString() };
+  });
+  return touched ? { ...data, lists } : data;
+}
+
+/** Uncheck every item on each list whose repeat boundary has passed since its last reset. */
+export function applyDueRepeats(data: TodoData, now: Date, timezone?: string): TodoData {
+  if (!anyRepeatDue(data.lists, now, timezone)) return data;
+  const iso = now.toISOString();
+  return {
+    ...data,
+    lists: data.lists.map((list) => {
+      if (!repeatIsDue(list, now, timezone)) return list;
+      return {
+        ...list,
+        items: list.items.map((it) => (it.completed ? { ...it, completed: false, completedAt: undefined } : it)),
+        lastResetAt: iso,
+        updatedAt: iso,
+      };
+    }),
+  };
+}
+
+// ── Pure operations (used by the API routes) ──
+
+export function slugify(name: string): string {
+  const base = name
+    .toLowerCase()
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_+|_+$/g, '');
+  return base || 'list';
+}
+
+function uniqueSlug(name: string, taken: Set<string>): string {
+  const base = slugify(name);
+  if (!taken.has(base)) return base;
+  for (let n = 2; ; n++) {
+    const candidate = `${base}_${n}`;
+    if (!taken.has(candidate)) return candidate;
+  }
+}
+
+function cleanName(raw: unknown): string {
+  if (typeof raw !== 'string') throw new TodoError(400, 'lists.nameRequired', 'Give the list a name');
+  const name = raw.trim();
+  if (!name) throw new TodoError(400, 'lists.nameRequired', 'Give the list a name');
+  if (name.length > TODO_LIMITS.maxListNameLength) {
+    throw new TodoError(400, 'lists.nameTooLong', `List names can be up to ${TODO_LIMITS.maxListNameLength} characters`, { max: TODO_LIMITS.maxListNameLength });
+  }
+  return name;
+}
+
+function cleanText(raw: unknown): string {
+  if (typeof raw !== 'string') throw new TodoError(400, 'lists.textRequired', 'Type something first');
+  const text = raw.trim();
+  if (!text) throw new TodoError(400, 'lists.textRequired', 'Type something first');
+  if (text.length > TODO_LIMITS.maxItemTextLength) {
+    throw new TodoError(400, 'lists.textTooLong', `Items can be up to ${TODO_LIMITS.maxItemTextLength} characters`, { max: TODO_LIMITS.maxItemTextLength });
+  }
+  return text;
+}
+
+function cleanDueDate(raw: unknown): string | undefined {
+  if (raw === undefined || raw === null || raw === '') return undefined;
+  if (typeof raw !== 'string' || !isValidISODate(raw)) {
+    throw new TodoError(400, 'lists.badDate', 'That is not a day we recognise');
+  }
+  return raw;
+}
+
+/**
+ * Family member ids for an item. Whether each id is someone in the family is
+ * `todoWrite`'s check, made against the roster inside the write's transaction.
+ */
+function cleanAssignees(raw: unknown): string[] | undefined {
+  if (raw === undefined || raw === null) return undefined;
+  if (!Array.isArray(raw) || raw.some((id) => typeof id !== 'string')) {
+    throw new TodoError(400, 'lists.badRequest', 'People must be a list of ids');
+  }
+  const ids = Array.from(new Set(raw as string[])).slice(0, 32);
+  return ids.length > 0 ? ids : undefined;
+}
+
+function cleanColor(raw: unknown): string | undefined {
+  if (raw === undefined || raw === null || raw === '') return undefined;
+  if (typeof raw !== 'string' || !HEX_COLOR.test(raw)) throw new TodoError(400, 'lists.badColor', 'Pick a colour from the list');
+  return raw.toLowerCase();
+}
+
+
+function findList(data: TodoData, listId: string): TodoList {
+  const list = data.lists.find((l) => l.id === listId);
+  if (!list) throw new TodoError(404, 'lists.listGone', 'That list is gone');
+  return list;
+}
+
+function replaceList(data: TodoData, next: TodoList): TodoData {
+  return { ...data, lists: data.lists.map((l) => (l.id === next.id ? next : l)) };
+}
+
+export interface CreateListInput {
+  name: unknown;
+  color?: unknown;
+  repeat?: unknown;
+  repeatDay?: unknown;
+}
+
+export function createList(data: TodoData, input: CreateListInput, now = new Date()): { data: TodoData; list: TodoList } {
+  if (data.lists.length >= TODO_LIMITS.maxLists) {
+    throw new TodoError(400, 'lists.tooManyLists', `You can have up to ${TODO_LIMITS.maxLists} lists`, { max: TODO_LIMITS.maxLists });
+  }
+  const name = cleanName(input.name);
+  const iso = now.toISOString();
+  const list: TodoList = {
+    id: uuid(),
+    name,
+    slug: uniqueSlug(name, new Set(data.lists.map((l) => l.slug))),
+    color: cleanColor(input.color),
+    items: [],
+    repeat: 'never',
+    createdAt: iso,
+    updatedAt: iso,
+  };
+  const withRepeat = applyRepeatInput(list, input, now);
+  return { data: { ...data, lists: [...data.lists, withRepeat] }, list: withRepeat };
+}
+
+function applyRepeatInput(
+  list: TodoList,
+  input: { repeat?: unknown; repeatDay?: unknown },
+  now = new Date(),
+): TodoList {
+  let next = list;
+  if (input.repeat !== undefined) {
+    if (typeof input.repeat !== 'string' || !REPEATS.has(input.repeat as TodoRepeat)) {
+      throw new TodoError(400, 'lists.badRequest', 'Repeat must be never, daily or weekly');
+    }
+    next = { ...next, repeat: input.repeat as TodoRepeat };
+  }
+  if (input.repeatDay !== undefined) {
+    if (typeof input.repeatDay !== 'number' || !Number.isInteger(input.repeatDay) || input.repeatDay < 0 || input.repeatDay > 6) {
+      throw new TodoError(400, 'lists.badRequest', 'Repeat day must be 0 (Sunday) to 6 (Saturday)');
+    }
+    next = { ...next, repeatDay: input.repeatDay };
+  }
+  if (next.repeat === 'weekly' && typeof next.repeatDay !== 'number') next = { ...next, repeatDay: 0 };
+  // A changed schedule starts counting from now. Without this the next read
+  // would measure from `createdAt` and uncheck a list the moment it gained
+  // a repeat, or the moment its day moved.
+  if (next.repeat !== list.repeat || next.repeatDay !== list.repeatDay) {
+    next = { ...next, lastResetAt: now.toISOString() };
+  }
+  return next;
+}
+
+export type TodoListAction = 'uncheck-all' | 'clear-completed';
+
+export interface UpdateListInput {
+  name?: unknown;
+  color?: unknown;
+  repeat?: unknown;
+  repeatDay?: unknown;
+  /** Full new order of item ids. Must be a permutation of the current items. */
+  itemOrder?: unknown;
+  action?: unknown;
+}
+
+export function updateList(data: TodoData, listId: string, input: UpdateListInput, now = new Date()): TodoData {
+  let list = findList(data, listId);
+  if (input.name !== undefined) list = { ...list, name: cleanName(input.name) };
+  if (input.color !== undefined) list = { ...list, color: cleanColor(input.color) };
+  list = applyRepeatInput(list, input, now);
+  if (input.itemOrder !== undefined) {
+    const order = input.itemOrder;
+    if (!Array.isArray(order) || order.some((id) => typeof id !== 'string')) {
+      throw new TodoError(400, 'lists.badRequest', 'itemOrder must be a list of item ids');
+    }
+    const byId = new Map(list.items.map((it) => [it.id, it]));
+    if (order.length !== byId.size || new Set(order).size !== order.length || order.some((id) => !byId.has(id))) {
+      throw new TodoError(409, 'lists.orderChanged', 'The list changed while you were moving things. Try again.');
+    }
+    list = { ...list, items: (order as string[]).map((id) => byId.get(id)!) };
+  }
+  if (input.action !== undefined) {
+    const iso = now.toISOString();
+    if (input.action === 'uncheck-all') {
+      list = { ...list, items: list.items.map((it) => (it.completed ? { ...it, completed: false, completedAt: undefined } : it)) };
+      if (list.repeat !== 'never') list = { ...list, lastResetAt: iso };
+    } else if (input.action === 'clear-completed') {
+      list = { ...list, items: list.items.filter((it) => !it.completed) };
+    } else {
+      throw new TodoError(400, 'lists.badRequest', 'Unknown action');
+    }
+  }
+  const before = findList(data, listId);
+  if (list === before) return data;
+  return replaceList(data, { ...list, updatedAt: now.toISOString() });
+}
+
+export function deleteList(data: TodoData, listId: string): TodoData {
+  findList(data, listId);
+  return { ...data, lists: data.lists.filter((l) => l.id !== listId) };
+}
+
+export interface AddItemInput {
+  text: unknown;
+  dueDate?: unknown;
+  assigneeIds?: unknown;
+  /** Insert at the top instead of the end. */
+  position?: unknown;
+}
+
+export function addItem(data: TodoData, listId: string, input: AddItemInput, now = new Date()): { data: TodoData; item: TodoListItem } {
+  const list = findList(data, listId);
+  if (list.items.length >= TODO_LIMITS.maxItemsPerList) {
+    throw new TodoError(400, 'lists.tooManyItems', `A list can hold up to ${TODO_LIMITS.maxItemsPerList} items`, { max: TODO_LIMITS.maxItemsPerList });
+  }
+  const iso = now.toISOString();
+  const item: TodoListItem = {
+    id: uuid(),
+    text: cleanText(input.text),
+    completed: false,
+    createdAt: iso,
+    dueDate: cleanDueDate(input.dueDate),
+    assigneeIds: cleanAssignees(input.assigneeIds),
+  };
+  const items = input.position === 'top' ? [item, ...list.items] : [...list.items, item];
+  return { data: replaceList(data, { ...list, items, updatedAt: iso }), item };
+}
+
+export interface UpdateItemInput {
+  text?: unknown;
+  completed?: unknown;
+  dueDate?: unknown;
+  /** An empty array clears. */
+  assigneeIds?: unknown;
+}
+
+export function updateItem(data: TodoData, listId: string, itemId: string, input: UpdateItemInput, now = new Date()): TodoData {
+  const list = findList(data, listId);
+  const idx = list.items.findIndex((it) => it.id === itemId);
+  if (idx === -1) throw new TodoError(404, 'lists.itemGone', 'That item is gone');
+  let item = list.items[idx];
+  const iso = now.toISOString();
+  if (input.text !== undefined) item = { ...item, text: cleanText(input.text) };
+  if (input.completed !== undefined) {
+    if (typeof input.completed !== 'boolean') throw new TodoError(400, 'lists.badRequest', 'completed must be true or false');
+    if (input.completed !== item.completed) {
+      item = { ...item, completed: input.completed, completedAt: input.completed ? iso : undefined };
+    }
+  }
+  if (input.dueDate !== undefined) item = { ...item, dueDate: cleanDueDate(input.dueDate) };
+  if (input.assigneeIds !== undefined) item = { ...item, assigneeIds: cleanAssignees(input.assigneeIds) };
+  if (item === list.items[idx]) return data;
+  const items = list.items.slice();
+  items[idx] = item;
+  return replaceList(data, { ...list, items, updatedAt: iso });
+}
+
+export function deleteItem(data: TodoData, listId: string, itemId: string, now = new Date()): TodoData {
+  const list = findList(data, listId);
+  if (!list.items.some((it) => it.id === itemId)) throw new TodoError(404, 'lists.itemGone', 'That item is gone');
+  return replaceList(data, {
+    ...list,
+    items: list.items.filter((it) => it.id !== itemId),
+    updatedAt: now.toISOString(),
+  });
+}
+
+// ── Fold-in of pre-v2 inline module items ──
+
+
+export function readTodoData(): Promise<TodoData> {
+  return withDataTransaction(readTodoDataUnlocked);
+}
+export function updateTodoData(mutator: (current: TodoData) => TodoData | Promise<TodoData>): Promise<TodoData> {
+  return withDataTransaction(() => updateTodoDataUnlocked(mutator));
+}
+

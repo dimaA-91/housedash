@@ -1,0 +1,37 @@
+.git/
+.github/
+.next/
+node_modules/
+out/
+build/
+coverage/
+test-results/
+playwright-report/
+blob-report/
+.env*
+*.tsbuildinfo
+data/*
+!data/secrets.example.json
+public/backgrounds/*
+!public/backgrounds/default.svg
+.claude/
+*.tar.gz
+backups/
+.deploy/
+.deploy.lock
+# Reference trees are not runtime inputs; documentation edits should not
+# invalidate the application build layer.
+docs/
+website/
+e2e/
+infrastructure/
+image-creation/
+RELEASE_NOTES/
+**/__tests__/
+**/*.test.ts
+**/*.test.tsx
+CLAUDE.md
+README.md
+Dockerfile
+scripts/Deploy-HouseDash.ps1
+scripts/deploy-pi.sh
