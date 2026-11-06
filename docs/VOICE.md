@@ -13,7 +13,10 @@ Tap the animated circle on Home to talk. The conversation opens full screen like
 Both implement the same interface (`client/engine.ts`). The realtime engine uses the Codex app server's
 `thread/realtime/start` (protocol v3 with WebRTC; it is marked experimental by Codex). The assistant's role and the
 family context are sent as initial items. Microphone and speaker always belong to the browser in use: the phone's
-own devices on a phone, the Pi's devices on the wall display. Microphones need HTTPS ([HTTPS.md](HTTPS.md)).
+own devices on a phone, the Pi's devices on the wall display. They are chosen once under *Mehr → Audio* and shared
+with the phone feature; at the wall display the list comes from the Pi (including HDMI), elsewhere from the browser
+(not on iPhone and iPad, where Safari cannot select an output). The browser applies echo cancellation, noise
+suppression and, for the realtime engine, automatic gain. Microphones need HTTPS ([HTTPS.md](HTTPS.md)).
 
 ## Setup
 

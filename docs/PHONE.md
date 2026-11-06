@@ -7,8 +7,10 @@ buttons, call status, accept/decline, mute and duration. No video, no recordings
 
 - **Phone, tablet, laptop**: the microphone and speaker of the device you call from. The Pi only holds the Telegram
   connection and relays raw audio (PCM, 48 kHz, mono, 16 bit). The microphone needs HTTPS ([HTTPS.md](HTTPS.md));
-  without it the call is *listen only*.
-- **Wall display** (`127.0.0.1`): a headset on the Pi through PulseAudio. Choose devices under *Kontakte & Headset*.
+  without it the call is *listen only*. The devices are the ones chosen under *Mehr → Audio* (per browser, shared
+  with the AI voice).
+- **Wall display** (`127.0.0.1`): the microphone and speaker of the Pi through PulseAudio (HDMI, USB headset, jack).
+  Choose them under *Mehr → Audio*; the same choice applies to the AI voice.
 - Whoever taps *Anrufen* or *Annehmen* decides where the audio runs. Other open devices stay silent.
   Incoming calls ring on every open device and over the idle screen.
 
@@ -16,6 +18,19 @@ Browser audio: microphone chunks of 40 ms via `POST /api/family/phone/audio`, th
 `GET /api/family/phone/audio`; in the bridge `send_frame` (10 ms frames) and `StreamFrames` with
 `MediaSource.EXTERNAL`. Echo cancellation comes from the browser. Calls over the browser have not yet been verified
 end to end with a real call.
+
+### Audio at the Pi
+
+- The speaker chosen under *Mehr → Audio* also becomes the PulseAudio default sink, so browser audio on the Pi (the AI
+  voice) follows it. *Automatisch* leaves the default alone.
+- The microphone is not opened by NTgCalls: its device capture asks PulseAudio for a 0.5 ms buffer, which a USB
+  microphone cannot deliver without gaps (crackling). `pump_microphone()` reads it with `parec` (40 ms buffer) and
+  gives 10 ms frames to the call as `MediaSource.EXTERNAL`, like the browser audio. It restarts if the device is
+  re-plugged.
+- Echo and noise: while a call runs, `module-echo-cancel` (WebRTC, noise suppression and high-pass filter) is loaded
+  between microphone and speaker; the call plays through its virtual sink so it knows what to remove. It costs about
+  20 % of one core during the call and is unloaded afterwards. If it cannot load, the call runs without it. Switch:
+  *Mehr → Audio*, setting `echoCancel` in `settings.json` (default on).
 
 ## Setup
 

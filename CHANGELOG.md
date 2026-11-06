@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- New settings page *Mehr → Audio*: one place for microphone, speaker, volume and test tone, shared by the AI voice
+  and the phone. At the wall display the devices come from the Pi (including HDMI); elsewhere from the browser.
+- Calls at the Pi no longer crackle: the microphone is read with a steady buffer instead of the 0.5 ms buffer that
+  NTgCalls asks the USB microphone for.
+- Echo and noise suppression for calls at the Pi (WebRTC, switchable, about 20 % of one core during a call).
+- The phone in a browser uses the devices chosen under Audio.
+
 ## 0.0.4 (2026-11)
 
 - Fixed settings switches that showed a stray grey pill behind the label (clashing `.family-switch` rules).
