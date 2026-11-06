@@ -1,7 +1,6 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { useVoiceDevices } from '@/app/family/useVoiceDevices';
 import { VOICE_UNAVAILABLE, type VoiceEngineChoice, type VoiceState } from '@/lib/family-voice-shared';
 
 const ENGINES: { id: VoiceEngineChoice; label: string; hint: string }[] = [
@@ -10,14 +9,13 @@ const ENGINES: { id: VoiceEngineChoice; label: string; hint: string }[] = [
   { id: 'local', label: 'Lokal auf dem Pi', hint: 'Ton bleibt auf dem Pi, nur der erkannte Text geht zur KI. Klingt einfacher und ist langsamer.' },
 ];
 
-/** Einstellungen unter Mehr: Anmeldung, Modell, Stimme und Mikrofon. Das Gespräch selbst läuft in FamilyConversation. */
-export default function FamilyVoice() {
+/** Einstellungen unter Mehr: Anmeldung, Modell und Stimme. Das Gespräch selbst läuft in FamilyConversation. */
+export default function FamilyVoice({ onAudio }: { onAudio: () => void }) {
   const [state, setState] = useState<VoiceState>(VOICE_UNAVAILABLE);
   const [live, setLive] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
-  const devices = useVoiceDevices();
   const refresh = useCallback(async () => {
     try {
       const response = await fetch('/api/family/voice', { cache: 'no-store' });
@@ -45,9 +43,9 @@ export default function FamilyVoice() {
     finally { setPending(false); }
   }, []);
   const active = pending || state.interpreting || state.live;
-  const message = error || devices.error || state.error;
+  const message = error || state.error;
   return <section className="family-system family-voice">
-    <p className="family-page-intro">Anmeldung, Stimme und Mikrofon</p>
+    <p className="family-page-intro">Anmeldung und Stimme</p>
     {message && <p role="alert" className="family-error">{message}</p>}
     <section className="family-tile"><h3>ChatGPT verbinden</h3>
       <p className="family-hint">Verwende deine ChatGPT-Anmeldung über Codex. Es gelten die verfügbaren Funktionen und Limits deines Kontos. Die eigene Anmeldesitzung bleibt auf diesem Pi gespeichert.</p>
@@ -72,12 +70,9 @@ export default function FamilyVoice() {
         {state.engine !== 'local' && <p className="family-hint">Die Echtzeit-Stimme ist bei OpenAI noch als experimentell gekennzeichnet. Eine neue Stimme gilt ab dem nächsten Gespräch.</p>}
       </div>
     </section>
-    <section className="family-tile"><h3>Mikrofon & Lautsprecher dieses Geräts</h3>
-      <p>{devices.inputs.length ? `${devices.inputs.length} Mikrofon${devices.inputs.length === 1 ? '' : 'e'} auf diesem Gerät erkannt.` : 'Noch kein freigegebenes Mikrofon auf diesem Gerät erkannt.'} Ausgabe über die Lautsprecher oder Kopfhörer dieses Geräts.</p>
-      {!devices.secure && devices.ready && <p className="family-hint">Für Mikrofonzugriff am Handy bitte <a href={`https://${typeof location === 'undefined' ? 'housedash.local' : location.hostname}/family`}>die lokale HTTPS-Adresse</a> verwenden. Einmalig das <a href={`http://${typeof location === 'undefined' ? 'housedash.local' : location.hostname}/housedash-root.crt`}>HouseDash-Zertifikat</a> auf dem eigenen Gerät installieren und vertrauen. Am Pi funktioniert die lokale Display-Adresse.</p>}
-      <div className="family-system-form"><button type="button" disabled={!devices.secure} onClick={() => void devices.permission()}>Mikrofonzugriff freigeben</button>
-        <label>Mikrofon auf diesem Gerät<select value={devices.microphoneId} onChange={event => devices.save(event.target.value)}><option value="">Systemstandard</option>{devices.inputs.filter(device => device.deviceId).map((device, index) => <option key={device.deviceId} value={device.deviceId}>{device.label || `Mikrofon ${index + 1}`}</option>)}</select></label>
-        <p className="family-hint">Diese Auswahl gilt nur für diesen Browser. Das Handy nutzt seine eigenen Geräte; direkt am Display nutzt der Pi seine angeschlossenen Geräte.</p></div>
+    <section className="family-tile"><h3>Mikrofon & Lautsprecher</h3>
+      <p className="family-hint">Welches Mikrofon und welcher Lautsprecher benutzt wird, stellst du unter Audio ein. Das gilt für die KI-Stimme und für das Telefon.</p>
+      <button type="button" onClick={onAudio}>Audio-Einstellungen öffnen</button>
     </section>
   </section>;
 }

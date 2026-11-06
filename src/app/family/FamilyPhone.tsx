@@ -4,7 +4,6 @@ import { QRCodeSVG } from 'qrcode.react';
 import { PHONE_BUSY_PHASES, PHONE_PHASE_LABEL, type ParentSlot } from '@/lib/family-phone-shared';
 import { CalendarSymbol } from './CalendarKeywordIcon';
 import { useFamilyPhone } from './FamilyPhoneContext';
-import FamilyPhoneAudio from './FamilyPhoneAudio';
 
 const slots: { id: ParentSlot; label: string }[] = [{ id: 'mama', label: 'Mama' }, { id: 'papa', label: 'Papa' }];
 
@@ -27,7 +26,7 @@ function ParentSettings({ slot, label: fallback }: { slot: ParentSlot; label: st
   </form>;
 }
 
-export default function FamilyPhone({ settings, onSettings }: { settings: boolean; onSettings: (open: boolean) => void }) {
+export default function FamilyPhone({ settings, onSettings, onAudio }: { settings: boolean; onSettings: (open: boolean) => void; onAudio: () => void }) {
   const { state, live, loading, pending, error, command, talk, audioReady, piDisplay, restarting, restartService, reconnect } = useFamilyPhone();
   const [apiId, setApiId] = useState('');
   const [apiHash, setApiHash] = useState('');
@@ -50,7 +49,7 @@ export default function FamilyPhone({ settings, onSettings }: { settings: boolea
     : !ready ? 'Telegram einrichten' : !state.connected ? 'Telegram-Verbindung unterbrochen' : !audioReady ? 'Audio-Ausgang fehlt' : piDisplay && !state.audio.microphones.length ? 'Bereit · Nur zuhören' : 'Bereit zum Telefonieren';
   return <section className="family-phone-page">
     <div className="family-phone-heading"><div><p className={`family-phone-connection${ready && live && state.connected && audioReady ? ' ready' : ''}`}><i />{connection}</p></div>
-      {ready && !settings && <button type="button" disabled={busy} onClick={() => onSettings(true)}>{piDisplay ? 'Kontakte & Headset' : 'Kontakte'}</button>}
+      {ready && !settings && <button type="button" disabled={busy} onClick={() => onSettings(true)}>Kontakte & Ton</button>}
     </div>
     {(error || state.error) && <p role="alert" className="family-error">{error || state.error}</p>}
     {(connectionProblem || restarting) && <div className="family-tile family-phone-setup">
@@ -84,13 +83,10 @@ export default function FamilyPhone({ settings, onSettings }: { settings: boolea
       {state.auth === 'password' && <form className="family-phone-auth-form" onSubmit={async e => { e.preventDefault(); if (await command('password', { password })) setPassword(''); }}><label>Telegram-Passwort<input type="password" autoComplete="current-password" value={password} onChange={e => setPassword(e.target.value)} maxLength={256} required /></label><button type="submit" className="family-primary" disabled={pending}>Anmeldung abschließen</button></form>}
     </div> : settings ? <>
       <div className="family-phone-settings"><section className="family-tile"><h3>Elternkontakte</h3><p className="family-hint">Diese beiden Kontakte können angerufen werden und hier anrufen. Es wird keine Nachricht versendet.</p><div className="family-phone-parent-settings">{slots.map(slot => <ParentSettings key={slot.id} slot={slot.id} label={slot.label} />)}</div></section>
-        {piDisplay ? <section className="family-tile family-phone-audio"><h3>Headset am Pi</h3>
-          <label>Mikrofon<select value={state.audio.microphone ?? ''} disabled={pending} onChange={e => void command('audio', { microphone: e.target.value || null, speaker: state.audio.speaker })}><option value="">Automatisch</option>{state.audio.microphones.map(device => <option key={device.id} value={device.id}>{device.name}</option>)}</select></label>
-          <label>Lautsprecher<select value={state.audio.speaker ?? ''} disabled={pending} onChange={e => void command('audio', { microphone: state.audio.microphone, speaker: e.target.value || null })}><option value="">Automatisch</option>{state.audio.speakers.map(device => <option key={device.id} value={device.id}>{device.name}</option>)}</select></label>
-          {state.audio.message && <p className="family-phone-notice">{state.audio.message}</p>}
-          <FamilyPhoneAudio />
-          <button type="button" disabled={pending} onClick={() => void command('refresh-audio')}>Geräte neu erkennen</button>
-        </section> : <section className="family-tile family-phone-audio"><h3>Ton</h3><p className="family-hint">Der Ton läuft über dieses Gerät: Mikrofon und Lautsprecher von Handy oder iPad. Beim ersten Anruf fragt der Browser nach dem Mikrofon.</p></section>}
+        <section className="family-tile family-phone-audio"><h3>Ton</h3>
+          <p className="family-hint">{piDisplay ? 'Mikrofon, Lautsprecher und Lautstärke am Pi stellst du unter Audio ein, gemeinsam für Telefon und KI-Stimme.' : 'Der Ton läuft über dieses Gerät. Mikrofon und Lautsprecher wählst du unter Audio. Beim ersten Anruf fragt der Browser nach dem Mikrofon.'}</p>
+          <button type="button" onClick={onAudio}>Audio-Einstellungen öffnen</button>
+        </section>
       </div>
       <section className="family-tile family-phone-account"><span>Verbunden als <strong>{state.account?.name}</strong></span><button type="button" disabled={pending} onClick={() => { if (!logout) setLogout(true); else { void command('logout'); setLogout(false); } }}>{logout ? 'Abmelden bestätigen' : 'Telegram abmelden'}</button>{logout && <button type="button" onClick={() => setLogout(false)}>Abbrechen</button>}</section>
     </> : <>

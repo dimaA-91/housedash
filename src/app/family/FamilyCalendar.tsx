@@ -30,6 +30,7 @@ import { FamilyPhoneIncoming, FamilyPhoneProvider } from './FamilyPhoneContext';
 
 const FamilyPhone = dynamic(() => import('./FamilyPhone'), { loading: () => <p role="status">Telefon wird geladen …</p> });
 const FamilySystemSettings = dynamic(() => import('./FamilySystemSettings'), { loading: () => <p role="status">Einstellungen werden geladen …</p> });
+const FamilyAudioSettings = dynamic(() => import('./FamilyAudioSettings'), { loading: () => <p role="status">Audio wird geladen …</p> });
 const FamilyVoice = dynamic(() => import('./FamilyVoice'), { loading: () => <p role="status">Spracheinstellungen werden geladen …</p> });
 const FamilyConversation = dynamic(() => import('./FamilyConversation'), { loading: () => <p role="status">Einen Moment …</p> });
 
@@ -243,7 +244,7 @@ function FamilyCalendarView() {
           {tab === 'home' && <FamilyHints now={now} waste={waste.waste.events} hourly={weather.weather?.hourly ?? null} />}
           {tab === 'home' && (data ? <FamilyHome layout={homeLayout} today={eventsOn(today)} tomorrow={eventsOn(tomorrowDate)} later={later} members={people.members} onOpen={openEvent} goTasks={() => selectTab('tasks')} goTransit={() => { setTab('more'); setMoreView('transit'); }} tasks={tasks} now={now} /> : <p role="status" className="family-empty">Kalender wird geladen …</p>)}
           {tab === 'tasks' && <FamilyTasks tasks={tasks} />}
-          {tab === 'phone' && <FamilyPhone settings={phoneSettings} onSettings={setPhoneSettings} />}
+          {tab === 'phone' && <FamilyPhone settings={phoneSettings} onSettings={setPhoneSettings} onAudio={() => { setPhoneSettings(false); setMoreView('audio'); setTab('more'); }} />}
           {tab === 'more' && <div className={`family-settings-split${moreView === 'menu' ? ' at-menu' : ''}`}>
             <FamilySettingsList current={fit.narrow ? null : settingsPage} onPick={setMoreView} />
             {settingsPage && <div className="family-settings-detail">
@@ -251,7 +252,8 @@ function FamilyCalendarView() {
               {settingsPage === 'icons' && <CalendarIconCatalog />}
               {settingsPage === 'apple' && <FamilyAppleCalendar />}
               {settingsPage === 'system' && <FamilySystemSettings onVoice={() => setMoreView('voice')} />}
-              {settingsPage === 'voice' && <FamilyVoice />}
+              {settingsPage === 'voice' && <FamilyVoice onAudio={() => setMoreView('audio')} />}
+              {settingsPage === 'audio' && <FamilyAudioSettings />}
               {settingsPage === 'software' && <FamilySoftware />}
               {settingsPage === 'brain' && <FamilyBrain />}
               {settingsPage === 'wifi' && <FamilyWifi />}

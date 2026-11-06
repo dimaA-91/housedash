@@ -1,6 +1,6 @@
 import type { VoiceAction, VoiceMessage } from '@/lib/family-voice-shared';
 import { VOICE_HISTORY_LIMIT } from '@/lib/family-voice-shared';
-import { playClientSpeech, prepareClientAudio, startClientRecording, stopClientSpeech, type ClientRecording } from '@/app/family/client-audio';
+import { playClientSpeech, prepareClientAudio, setClientSpeaker, startClientRecording, stopClientSpeech, type ClientRecording } from '@/app/family/client-audio';
 import { microphoneMessage, readEvents, type VoiceEngine, type VoiceEngineOptions, type VoiceEvents } from './engine';
 
 const SILENCE_END_MS = 800;
@@ -51,6 +51,7 @@ export class LocalEngine implements VoiceEngine {
   }
 
   async start() {
+    setClientSpeaker(this.options.speakerId ?? '');
     prepareClientAudio();
     void fetch('/api/family/voice', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'preload' }) }).catch(() => {});
     if (this.listens) await this.listen();

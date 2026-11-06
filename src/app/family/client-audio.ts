@@ -1,9 +1,37 @@
 'use client';
 let context: AudioContext | null = null;
 let speech: AudioBufferSourceNode | null = null;
+let speakerId = '';
+type Sinkable = { setSinkId?: (id: string) => Promise<void> };
+/** Route an audio element or context to an output device. '' is the system default. Rejects if the device is gone. */
+export async function routeToSpeaker(target: unknown, id: string) {
+  const sinkable = target as Sinkable;
+  if (typeof sinkable.setSinkId === 'function') await sinkable.setSinkId(id);
+}
+/** Output device for the local voice. Applied to the shared context now and whenever it is created. */
+export function setClientSpeaker(id: string) {
+  speakerId = id;
+  if (context) void routeToSpeaker(context, id).catch(() => { /* the system default keeps playing */ });
+}
+/** Short tone through the chosen output, so the speaker can be checked without starting a conversation. */
+export async function playTestTone(id: string) {
+  const test = new AudioContext();
+  try {
+    if (id) await routeToSpeaker(test, id);
+    await test.resume();
+    const tone = test.createOscillator(), gain = test.createGain(), start = test.currentTime;
+    tone.frequency.value = 660;
+    gain.gain.setValueAtTime(0.0001, start); gain.gain.exponentialRampToValueAtTime(0.25, start + 0.05); gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.8);
+    tone.connect(gain); gain.connect(test.destination);
+    await new Promise<void>(resolve => { tone.onended = () => resolve(); tone.start(start); tone.stop(start + 0.85); });
+  } finally { void test.close().catch(() => {}); }
+}
 /** Called directly by a click: audio permission/activation belongs to this browser. */
 export function prepareClientAudio(): AudioContext {
-  context ??= new AudioContext();
+  if (!context) {
+    context = new AudioContext();
+    if (speakerId) void routeToSpeaker(context, speakerId).catch(() => { /* the system default keeps playing */ });
+  }
   void context.resume().catch(() => {});
   return context;
 }

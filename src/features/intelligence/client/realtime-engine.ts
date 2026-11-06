@@ -1,4 +1,5 @@
 import type { VoiceAction } from '@/lib/family-voice-shared';
+import { routeToSpeaker } from '@/app/family/client-audio';
 import { microphoneMessage, readEvents, type VoiceEngine, type VoiceEngineOptions, type VoiceEvents } from './engine';
 
 const IDLE_LIMIT_MS = 90_000;
@@ -70,6 +71,7 @@ export class RealtimeEngine implements VoiceEngine {
       pc.createDataChannel('oai-events');
       this.audio = new Audio();
       this.audio.autoplay = true;
+      if (this.options.speakerId) void routeToSpeaker(this.audio, this.options.speakerId).catch(() => this.events.notice('Der gewählte Lautsprecher ist nicht verfügbar. Die Stimme läuft über den Systemstandard.'));
       pc.ontrack = event => { if (this.audio) { this.audio.srcObject = event.streams[0]; void this.audio.play().catch(() => this.events.notice('Der Browser blockiert die Wiedergabe. Tippe auf „Ton aktivieren“.')); } this.watch(event.streams[0]); };
       pc.onconnectionstatechange = () => {
         if (pc.connectionState === 'failed') this.finish({ error: 'Die Verbindung zur Stimme ist abgebrochen.', fallback: !this.answered });

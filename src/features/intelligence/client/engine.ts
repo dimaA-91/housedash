@@ -31,6 +31,8 @@ export interface VoiceEngine {
 }
 export interface VoiceEngineOptions {
   microphoneId: string;
+  /** Output device of this browser for the spoken answer. Empty: system default. */
+  speakerId?: string;
   history?: VoiceMessage[];
 }
 

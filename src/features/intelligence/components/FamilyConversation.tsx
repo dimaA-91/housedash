@@ -5,7 +5,7 @@ import { validVoiceHistory, VOICE_HISTORY_LIMIT } from '@/lib/family-voice-share
 import type { VoiceEngine, VoiceEvents, VoicePhase } from '@/features/intelligence/client/engine';
 import { LocalEngine } from '@/features/intelligence/client/local-engine';
 import { RealtimeEngine } from '@/features/intelligence/client/realtime-engine';
-import { readVoiceDevicePreference } from '@/app/family/useVoiceDevices';
+import { readSpeakerPreference, readVoiceDevicePreference } from '@/app/family/useVoiceDevices';
 import { hasOwnKeyboard } from '@/app/family/TouchKeyboard';
 import ConversationIcon from './ConversationIcon';
 import './conversation.css';
@@ -81,7 +81,7 @@ export default function FamilyConversation({ onBack }: { onBack: () => void }) {
   const startLocal = useCallback((listens: boolean) => {
     const microphoneId = readVoiceDevicePreference();
     let self: LocalEngine | null = null;
-    self = new LocalEngine(events(() => engine.current === self), { microphoneId, history: history.current }, listens);
+    self = new LocalEngine(events(() => engine.current === self), { microphoneId, speakerId: readSpeakerPreference(), history: history.current }, listens);
     engine.current = self; setRunning(true);
     void self.start();
     return self;
@@ -105,7 +105,7 @@ export default function FamilyConversation({ onBack }: { onBack: () => void }) {
     if (choice === 'local') { flush(startLocal(true)); return; }
     const microphoneId = readVoiceDevicePreference();
     let self: RealtimeEngine | null = null;
-    self = new RealtimeEngine(events(() => engine.current === self, choice === 'auto' ? () => startLocal(true) : undefined), { microphoneId, history: history.current });
+    self = new RealtimeEngine(events(() => engine.current === self, choice === 'auto' ? () => startLocal(true) : undefined), { microphoneId, speakerId: readSpeakerPreference(), history: history.current });
     engine.current = self; setRunning(true);
     flush(self);
     void self.start();

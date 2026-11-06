@@ -1,6 +1,6 @@
 'use client';
 
-export type SettingsPage = 'family' | 'icons' | 'apple' | 'waste' | 'brain' | 'voice' | 'wifi' | 'transit' | 'display' | 'idle' | 'system' | 'software';
+export type SettingsPage = 'family' | 'icons' | 'apple' | 'waste' | 'brain' | 'voice' | 'audio' | 'wifi' | 'transit' | 'display' | 'idle' | 'system' | 'software';
 
 /** Einstellungen wie auf dem iPad: Gruppen mit farbigem Symbol, Name und kurzer Beschreibung. */
 const GROUPS: { title: string; items: { id: SettingsPage; label: string; hint: string; color: string; icon: React.ReactNode }[] }[] = [
@@ -12,9 +12,10 @@ const GROUPS: { title: string; items: { id: SettingsPage; label: string; hint: s
   ] },
   { title: 'Intelligenz', items: [
     { id: 'brain', label: 'Family Brain', hint: 'Was sich HouseDash merkt', color: '#a855f7', icon: <><path d="M9 4a3 3 0 0 0-3 3 3 3 0 0 0-1 5.5A3 3 0 0 0 8 17a3 3 0 0 0 4 2V5a2 2 0 0 0-3-1ZM15 4a3 3 0 0 1 3 3 3 3 0 0 1 1 5.5A3 3 0 0 1 16 17a3 3 0 0 1-4 2" /></> },
-    { id: 'voice', label: 'OpenAI & Sprache', hint: 'Anmeldung, Stimme, Mikrofon', color: '#10a37f', icon: <><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" /></> },
+    { id: 'voice', label: 'OpenAI & Sprache', hint: 'Anmeldung und Stimme', color: '#10a37f', icon: <><rect x="9" y="3" width="6" height="11" rx="3" /><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21" /></> },
   ] },
   { title: 'Verbindungen', items: [
+    { id: 'audio', label: 'Audio', hint: 'Mikrofon, Lautsprecher, Lautstärke', color: '#e11d48', icon: <><path d="M4 9.5h3.5L12 6v12l-4.5-3.5H4Z" /><path d="M15.5 9a4 4 0 0 1 0 6M18 6.5a8 8 0 0 1 0 11" /></> },
     { id: 'wifi', label: 'WLAN', hint: 'Netz wählen und verbinden', color: '#0a84ff', icon: <><path d="M2.5 9a14 14 0 0 1 19 0M5.5 12.5a9.5 9.5 0 0 1 13 0M8.6 15.8a5 5 0 0 1 6.8 0" /><circle cx="12" cy="19" r="1.2" /></> },
     { id: 'transit', label: 'Straßenbahn', hint: 'Haltestellen und Linie', color: '#f59e0b', icon: <><rect x="5" y="6" width="14" height="11" rx="3" /><path d="M5 12h14M9 3h6M12 3v3M8 20l1.5-3M16 20l-1.5-3" /></> },
   ] },

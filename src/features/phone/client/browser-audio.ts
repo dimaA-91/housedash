@@ -1,3 +1,5 @@
+import { routeToSpeaker } from '@/app/family/client-audio';
+import { readSpeakerPreference, readVoiceDevicePreference } from '@/app/family/useVoiceDevices';
 /**
  * Telefon-Ton im Browser: Mikrofon und Lautsprecher des Geräts, mit dem man telefoniert (Handy, iPad).
  * Der Pi hält nur die Telegram-Verbindung. Roher Ton läuft als PCM (48 kHz, mono, 16 Bit):
@@ -38,12 +40,19 @@ export class BrowserCallAudio {
     let context: AudioContext;
     try { context = new Context({ sampleRate: RATE, latencyHint: 'interactive' }); } catch { context = new Context(); }
     await context.resume().catch(() => {});
+    // Same devices as the AI voice: chosen once under Mehr, then Audio (stored per browser).
+    const speakerId = readSpeakerPreference(), microphoneId = readVoiceDevicePreference();
+    if (speakerId) await routeToSpeaker(context, speakerId).catch(() => { /* the system default keeps playing */ });
     let microphone: MediaStream | null = null;
     // getUserMedia gibt es nur über HTTPS (oder 127.0.0.1). Ohne Mikrofon läuft das Gespräch als "Nur zuhören".
     if (navigator.mediaDevices?.getUserMedia) {
+      const constraints = { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 };
       try {
-        microphone = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 } });
-      } catch { microphone = null; }
+        microphone = await navigator.mediaDevices.getUserMedia({ audio: { ...constraints, ...(microphoneId ? { deviceId: { exact: microphoneId } } : {}) } });
+      } catch {
+        // The chosen microphone may be unplugged: try the system default before giving up.
+        try { microphone = microphoneId ? await navigator.mediaDevices.getUserMedia({ audio: constraints }) : null; } catch { microphone = null; }
+      }
     }
     return new BrowserCallAudio(context, microphone);
   }

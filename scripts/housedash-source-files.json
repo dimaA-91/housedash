@@ -133,6 +133,7 @@
     "src/app/family/CalendarIconCatalog.tsx",
     "src/app/family/CalendarKeywordIcon.tsx",
     "src/app/family/FamilyAppleCalendar.tsx",
+    "src/app/family/FamilyAudioSettings.tsx",
     "src/app/family/FamilyBrain.tsx",
     "src/app/family/FamilyCalendar.tsx",
     "src/app/family/FamilyCalendarGrid.tsx",
