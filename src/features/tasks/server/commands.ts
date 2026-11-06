@@ -10,12 +10,13 @@ import { findMember } from '@/features/household/server/members';
 import type { Args, Context } from '@/features/shared/server/types';
 
 export async function runTaskChange(args: Args, context: Context) {
-    const operation = text(args, 'operation'); if (!['add','complete','reopen','delete','create-list'].includes(operation)) throw new VoiceError('Unbekannte Aufgabenaktion.');
+    const operation = text(args, 'operation'); if (!['add','complete','reopen','delete','create-list','assign','unassign'].includes(operation)) throw new VoiceError('Unbekannte Aufgabenaktion.');
     const data = await readTodoData(), listId = optional(args, 'listId'), itemId = optional(args, 'itemId');
     const list = data.lists.find(l => l.id === listId), item = list?.items.find(i => i.id === itemId);
     if (operation !== 'create-list' && !list) throw new VoiceError('Bitte zuerst die passende Liste auswählen.');
-    if (['complete','reopen','delete'].includes(operation) && !item) throw new VoiceError('Bitte einen vorhandenen Eintrag auswählen.');
+    if (['complete','reopen','delete','assign','unassign'].includes(operation) && !item) throw new VoiceError('Bitte einen vorhandenen Eintrag auswählen.');
     const value = optional(args, 'text'), dueDate = optional(args, 'dueDate'), name = optional(args, 'member'), member = name ? await findMember(name) : null;
+    if (operation === 'assign' && !member) throw new VoiceError('Bitte sagen, wer zuständig sein soll.');
     if (operation === 'delete') {
       const before = stamp(list || null);
       return prepare(context, `„${item!.text}“ löschen`, list!.name, async () => withDataTransaction(async () => {
@@ -30,13 +31,18 @@ export async function runTaskChange(args: Args, context: Context) {
         if (operation !== 'create-list' && stamp(current.lists.find(entry => entry.id === listId)) !== stamp(list)) throw new VoiceError('Die Liste wurde inzwischen geändert. Bitte erneut nachsehen.', 409);
         if (operation === 'create-list') { const result = createList(current, { name: value }); createdId = result.list.id; return result.data; }
         if (operation === 'add') { const result = addItem(current, listId!, { text: value, dueDate, assigneeIds: member ? [member.id] : [] }); createdId = result.item.id; return result.data; }
+        if (operation === 'assign' || operation === 'unassign') {
+          const ids = operation === 'assign' ? [member!.id] : [];
+          if (JSON.stringify(item!.assigneeIds ?? []) === JSON.stringify(ids)) { unchanged = true; return current; }
+          return updateItem(current, listId!, itemId!, { assigneeIds: ids });
+        }
         if (item!.completed === (operation === 'complete')) { unchanged = true; return current; }
         return updateItem(current, listId!, itemId!, { completed: operation === 'complete' });
       });
       afterStamp = stamp(updated.lists.find(entry => entry.id === (operation === 'create-list' ? createdId : listId)));
       familyChanges.emit('change', Date.now());
     });
-    if (unchanged) return { saved: true, unchanged: true, message: 'Die Aufgabe hatte bereits diesen Zustand.' };
+    if (unchanged) return { saved: true, unchanged: true, message: operation === 'assign' || operation === 'unassign' ? 'Die Zuordnung war bereits so.' : 'Die Aufgabe hatte bereits diesen Zustand.' };
     const undo = async (signal: AbortSignal) => withDataTransaction(async () => {
       signal.throwIfAborted();
       await updateTodoData(current => {
@@ -47,6 +53,8 @@ export async function runTaskChange(args: Args, context: Context) {
       familyChanges.emit('change', Date.now()); return { message: 'Zurückgenommen.' };
     });
     if (operation === 'create-list') return done(context, `Liste „${value}“ erstellt`, '', undo);
-    if (operation === 'add') return done(context, `„${value}“ hinzugefügt`, [list!.name, dueDate].filter(Boolean).join(' · '), undo);
+    if (operation === 'add') return done(context, `„${value}“ hinzugefügt`, [list!.name, member ? `für ${member.name}` : '', dueDate].filter(Boolean).join(' · '), undo);
+    if (operation === 'assign') return done(context, `„${item!.text}“ ist jetzt ${member!.name} zugeordnet`, list!.name, undo);
+    if (operation === 'unassign') return done(context, `„${item!.text}“ gilt wieder für alle`, list!.name, undo);
     return done(context, `„${item!.text}“ ${operation === 'complete' ? 'abgehakt' : 'wieder offen'}`, list!.name, undo);
   }

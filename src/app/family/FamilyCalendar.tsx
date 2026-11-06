@@ -26,6 +26,7 @@ import FamilyIntelligence from './FamilyIntelligence';
 import FamilyWifi from './FamilyWifi';
 import FamilyBrain, { FamilyBrainPrompt } from './FamilyBrain';
 import FamilyAppleCalendar, { AppleEventDetail, useAppleCalendar } from './FamilyAppleCalendar';
+import FamilyPersonBar from './FamilyPersonBar';
 import { FamilyPhoneIncoming, FamilyPhoneProvider } from './FamilyPhoneContext';
 
 const FamilyPhone = dynamic(() => import('./FamilyPhone'), { loading: () => <p role="status">Telefon wird geladen …</p> });
@@ -55,6 +56,7 @@ function FamilyCalendarView() {
   const [data, setData] = useState<CalendarData | null>(null);
   const [date, setDate] = useState(() => dayKey(new Date()));
   const [view, setView] = useState<'day' | 'week' | 'month'>('week');
+  const [person, setPerson] = useState<string | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [appleDetail, setAppleDetail] = useState<FamilyEvent | null>(null);
   /** Eigener Termin zum Lesen (vor dem Bearbeiten). */
@@ -211,6 +213,21 @@ function FamilyCalendarView() {
       return events;
     };
   }, [data?.events, waste.events, people.events, calendarYear, apple.events]);
+  // Person filter: stored per browser, ignored if the person no longer exists.
+  useEffect(() => { try { setPerson(localStorage.getItem('housedash-person-filter') || null); } catch { /* storage blocked */ } }, []);
+  const selectPerson = useCallback((id: string | null) => { setPerson(id); try { if (id) localStorage.setItem('housedash-person-filter', id); else localStorage.removeItem('housedash-person-filter'); } catch { /* still works this session */ } }, []);
+  const activePerson = person && people.members.some(member => member.id === person) ? person : null;
+  const shownOn = useCallback((day: Date) => {
+    const events = eventsOn(day);
+    if (!activePerson) return events;
+    const name = people.members.find(member => member.id === activePerson)?.name;
+    // Events of the person and events of the whole family (no person) stay; those of other people go.
+    return events.filter(event => event.memberId ? event.memberId === activePerson : !event.member || event.member === name);
+  }, [eventsOn, activePerson, people.members]);
+  // The person filter also applies to tasks: that person's tasks plus those for the whole family.
+  const shownTasks = activePerson
+    ? { ...tasks, open: tasks.open.filter(item => !item.assigneeIds?.length || item.assigneeIds.includes(activePerson)), done: tasks.done.filter(item => !item.assigneeIds?.length || item.assigneeIds.includes(activePerson)) }
+    : tasks;
   const openEvent = useCallback((event: FamilyEvent) => { if (event.id.startsWith('apple:')) { setAppleDetail(event); return; } setOccurrence(null); if (event.id.startsWith('rep:')) { const [, id, day] = event.id.split(':'); const original = data?.events.find(e => e.id === id); if (!original) return; setOccurrence(day); event = original; } else if (event.id.startsWith('bday:')) { const original = data?.events.find(e => e.id === event.id.split(':')[1]); if (!original) return; event = original; } else if (isDerivedEvent(event)) return; setError(''); setDetail(event); }, [data?.events]);
   const hour = now?.getHours() ?? 12;
   const greeting = greetingFor(hour, people.familyName);
@@ -226,7 +243,7 @@ function FamilyCalendarView() {
   const later = (() => {
     for (let i = 2; i <= 8; i++) {
       const day = new Date(today.getFullYear(), today.getMonth(), today.getDate() + i);
-      const events = eventsOn(day);
+      const events = shownOn(day);
       if (events.length) return { title: day.toLocaleDateString('de-DE', { weekday: 'long' }), events };
     }
     return null;
@@ -236,14 +253,14 @@ function FamilyCalendarView() {
     <div className="family-stage" style={fit.narrow ? undefined : { width: fit.width, height: fit.height, marginLeft: -fit.width / 2, marginTop: -fit.height / 2, transform: `scale(${fit.scale})` }}>
       <FamilyTabs tab={tab} onChange={selectTab} connected={connected} onHomeLongPress={() => { setTab('home'); setPickingLayout(true); }} />
       <div className="family-main">
-        <header className="family-header"><div className={`family-greeting${back ? ' has-back' : ''}`}>{back && <button type="button" className="family-back" onClick={back.go} aria-label={`Zurück zu ${back.label}`}><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg><span>{back.label}</span></button>}<div className="family-greeting-text"><h1>{title}</h1><p>{today.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p></div></div><div className="family-header-right">{tab === 'home' && <FamilyIntelligence onClick={() => setIntelligenceOpen(true)} />}<FamilyWeather /><strong className="family-clock-time">{now?.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) ?? '—'}</strong></div></header>
+        <header className="family-header"><div className={`family-greeting${back ? ' has-back' : ''}`}>{back && <button type="button" className="family-back" onClick={back.go} aria-label={`Zurück zu ${back.label}`}><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7" /></svg><span>{back.label}</span></button>}<div className="family-greeting-text"><h1>{title}</h1><div className="family-subline"><p>{today.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>{(tab === 'home' || tab === 'calendar' || tab === 'tasks') && <FamilyPersonBar members={people.members} selected={activePerson} onSelect={selectPerson} />}</div></div></div><div className="family-header-right">{tab === 'home' && <FamilyIntelligence onClick={() => setIntelligenceOpen(true)} />}<FamilyWeather /><strong className="family-clock-time">{now?.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) ?? '—'}</strong></div></header>
         <div className="family-content">
           {error && !draft ? <p role="alert" className="family-error">{error} <button onClick={() => { setError(''); void refresh(); }}>Erneut laden</button></p> : null}
           {(tab === 'home' || tab === 'calendar') && apple.message && <p className="family-hint" role="status">{apple.message}</p>}
           {tab === 'home' && data && <FamilyBrainPrompt onOpenEvent={id => { const event = data.events.find(e => e.id === id); if (event) openEvent(event); }} />}
           {tab === 'home' && <FamilyHints now={now} waste={waste.waste.events} hourly={weather.weather?.hourly ?? null} />}
-          {tab === 'home' && (data ? <FamilyHome layout={homeLayout} today={eventsOn(today)} tomorrow={eventsOn(tomorrowDate)} later={later} members={people.members} onOpen={openEvent} goTasks={() => selectTab('tasks')} goTransit={() => { setTab('more'); setMoreView('transit'); }} tasks={tasks} now={now} /> : <p role="status" className="family-empty">Kalender wird geladen …</p>)}
-          {tab === 'tasks' && <FamilyTasks tasks={tasks} />}
+          {tab === 'home' && (data ? <FamilyHome layout={homeLayout} today={shownOn(today)} tomorrow={shownOn(tomorrowDate)} later={later} members={people.members} onOpen={openEvent} goTasks={() => selectTab('tasks')} goTransit={() => { setTab('more'); setMoreView('transit'); }} tasks={shownTasks} now={now} /> : <p role="status" className="family-empty">Kalender wird geladen …</p>)}
+          {tab === 'tasks' && <FamilyTasks tasks={shownTasks} members={people.members} />}
           {tab === 'phone' && <FamilyPhone settings={phoneSettings} onSettings={setPhoneSettings} onAudio={() => { setPhoneSettings(false); setMoreView('audio'); setTab('more'); }} />}
           {tab === 'more' && <div className={`family-settings-split${moreView === 'menu' ? ' at-menu' : ''}`}>
             <FamilySettingsList current={fit.narrow ? null : settingsPage} onPick={setMoreView} />
@@ -273,7 +290,7 @@ function FamilyCalendarView() {
             </div>}
           </div>}
           {tab === 'calendar' && <section className="family-calendar" {...swipeProps}><div className="family-toolbar"><h2>{base.toLocaleDateString('de-DE', { month: 'long', year: 'numeric' })}<small>KW {isoWeek(view === 'week' ? days[0] : base)}</small></h2><div className="family-controls"><button aria-label="Vorheriger Zeitraum" onClick={() => move(-1)}>←</button><button onClick={() => setDate(dayKey(new Date()))}>Heute</button><button aria-label="Nächster Zeitraum" onClick={() => move(1)}>→</button><div className="family-segment" role="group" aria-label="Kalenderansicht">{(['day', 'week', 'month'] as const).map(v => <button key={v} type="button" aria-pressed={view === v} onClick={() => setView(v)}>{v === 'day' ? 'Tag' : v === 'week' ? 'Woche' : 'Monat'}</button>)}</div><button className="family-primary" onClick={create}>+ Termin</button></div></div>
-            {!data ? <p role="status">Kalender wird geladen …</p> : <FamilyCalendarGrid days={days} view={view} compact={fit.narrow} today={now ? dayKey(now) : ''} selected={date} onSelect={setDate} eventsOn={eventsOn} onOpen={openEvent} />}
+            {!data ? <p role="status">Kalender wird geladen …</p> : <FamilyCalendarGrid days={days} view={view} compact={fit.narrow} today={now ? dayKey(now) : ''} selected={date} onSelect={setDate} eventsOn={shownOn} onOpen={openEvent} />}
           </section>}
         </div>
       </div>

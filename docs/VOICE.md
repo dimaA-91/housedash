@@ -33,6 +33,11 @@ tasks, transit (stops, departures, journeys, the configured route), bins, weathe
 the phone. Times are given in local time of the home.
 
 - Creating or changing events and tasks happens at once and can be undone.
+- Tasks belong to people: the assistant reads each entry with the names of the people responsible (`housedash_tasks`,
+  optionally only one person's entries via `member`), creates entries for a person, and changes who is responsible
+  afterwards (`housedash_task_change` with `assign` or `unassign`). Names are matched loosely, so a slightly misheard
+  "Lina" still finds "Linda"; an unknown name gets the list of family members back. The screen offers the same: choose
+  people when adding a task, and tap the circle on a task to change them. No person means the whole family.
 - Deleting and calling are only prepared; a tap on the card in the call confirms. Speech never replaces the tap.
 - Repeated tool call ids within one session run once. After an unclear result the assistant reads first and does
   not write again automatically.

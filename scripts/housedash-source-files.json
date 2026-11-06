@@ -145,6 +145,7 @@
     "src/app/family/FamilyIdle.tsx",
     "src/app/family/FamilyIntelligence.tsx",
     "src/app/family/FamilyPeople.tsx",
+    "src/app/family/FamilyPersonBar.tsx",
     "src/app/family/FamilyPhone.tsx",
     "src/app/family/FamilyPhoneAudio.tsx",
     "src/app/family/FamilyPhoneContext.tsx",

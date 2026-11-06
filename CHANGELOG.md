@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Tasks can belong to people: choose who when adding, change it later with a tap on the task, see the responsible
+  people as coloured circles. The assistant can do the same (read with names, add for a person, assign, unassign).
+- Person filter in the header of Home, Calendar and Tasks: shows that person's appointments and tasks plus everything
+  for the whole family.
 - New settings page *Mehr → Audio*: one place for microphone, speaker, volume and test tone, shared by the AI voice
   and the phone. At the wall display the devices come from the Pi (including HDMI); elsewhere from the browser.
 - Calls at the Pi no longer crackle: the microphone is read with a steady buffer instead of the 0.5 ms buffer that

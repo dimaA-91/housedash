@@ -5,6 +5,7 @@ import type { TodoList, TodoListItem } from '@/types/todos';
 import FamilyTransit from './FamilyTransit';
 import { WasteBin, isWasteEvent, wasteTypeOfEvent } from './FamilyWaste';
 import { BirthdayCake, HomeBirthdayCard, hasCake } from './FamilyPeople';
+import { inkFor } from './FamilyPersonBar';
 import type { FamilyMember } from '@/types/family';
 import CalendarKeywordIcon from './CalendarKeywordIcon';
 import FamilyRoomClimate from './FamilyRoomClimate';
@@ -59,12 +60,18 @@ export function useTasks() {
     setList({ ...list, items: list.items.map(i => i.id === item.id ? { ...i, completed: !item.completed, completedAt: item.completed ? undefined : new Date().toISOString() } : i) });
     return run(() => send(`${api}/${list.id}/items/${item.id}`, 'PATCH', { completed: !item.completed }));
   };
-  const add = (text: string, dueDate?: string) => list && run(() => send(`${api}/${list.id}/items`, 'POST', { text, ...(dueDate ? { dueDate } : {}) }));
+  const add = (text: string, dueDate?: string, assigneeIds?: string[]) => list && run(() => send(`${api}/${list.id}/items`, 'POST', { text, ...(dueDate ? { dueDate } : {}), ...(assigneeIds?.length ? { assigneeIds } : {}) }));
+  /** Who is responsible. An empty list means everyone. The server checks that the people still exist. */
+  const assign = (item: TodoListItem, assigneeIds: string[]) => {
+    if (!list) return;
+    setList({ ...list, items: list.items.map(i => i.id === item.id ? { ...i, assigneeIds } : i) });
+    return run(() => send(`${api}/${list.id}/items/${item.id}`, 'PATCH', { assigneeIds }));
+  };
   const remove = (item: TodoListItem) => list && run(() => send(`${api}/${list.id}/items/${item.id}`, 'DELETE'));
   /** Offene zuerst (mit Datum nach Datum, ohne Datum danach), dann Erledigtes der letzten 7 Tage. */
   const open = (list?.items ?? []).filter(i => !i.completed).sort((a, b) => (a.dueDate ?? '9999').localeCompare(b.dueDate ?? '9999'));
   const done = (list?.items ?? []).filter(i => i.completed && Date.now() - Date.parse(i.completedAt ?? '') < 7 * DAY).sort((a, b) => (b.completedAt ?? '').localeCompare(a.completedAt ?? ''));
-  return { ready: list !== null, open, done, error, toggle, add, remove };
+  return { ready: list !== null, open, done, error, toggle, add, assign, remove };
 }
 type Tasks = ReturnType<typeof useTasks>;
 
@@ -96,28 +103,51 @@ function DaySection({ title, events, onOpen, empty, big }: { title: string; even
   </section>;
 }
 
-function Checklist({ tasks, limit, removable, page }: { tasks: Tasks; limit?: number; removable?: boolean; page?: boolean }) {
+/** Small coloured circles for the people an entry belongs to. Nothing shown means it is for the whole family. */
+function Assignees({ ids, members }: { ids?: string[]; members: FamilyMember[] }) {
+  const people = (ids ?? []).map(id => members.find(member => member.id === id)).filter((member): member is FamilyMember => !!member);
+  if (!people.length) return null;
+  return <span className="family-assignees" role="img" aria-label={`Zuständig: ${people.map(person => person.name).join(', ')}`}>
+    {people.map(person => <i key={person.id} title={person.name} style={{ '--person': person.color, '--person-ink': inkFor(person.color) } as React.CSSProperties}>{person.emoji || person.name.slice(0, 1).toUpperCase()}</i>)}
+  </span>;
+}
+
+function Checklist({ tasks, members, limit, removable, page }: { tasks: Tasks; members: FamilyMember[]; limit?: number; removable?: boolean; page?: boolean }) {
+  const [picking, setPicking] = useState<string | null>(null);
   const items = (page ? [...tasks.open, ...tasks.done] : tasks.open).slice(0, limit);
   if (!tasks.ready) return <p className="family-empty">Wird geladen …</p>;
   if (items.length === 0) return <p className="family-empty">Alles erledigt. Nichts zu tun.</p>;
   return <ul className="family-rows family-todos">{items.map(i => { const due = dueLabel(i.completed ? undefined : i.dueDate); return <li key={i.id} className={i.completed ? 'done' : ''}>
+    <div className="family-todo-line">
     <button type="button" className="family-todo-btn" aria-pressed={i.completed} onClick={() => void tasks.toggle(i)}>
       <span className="family-check-dot" aria-hidden="true">{i.completed ? '✓' : ''}</span>
       <span className="family-todo-text">{i.text}{page && !i.completed && <small className="family-todo-due">{due?.text ?? 'Ohne Datum'}</small>}</span>
+      {!page && <Assignees ids={i.assigneeIds} members={members} />}
       {!page && due && <em className={`family-due ${due.cls}`}>{due.text}</em>}
       {page && due && !i.completed && due.cls === 'late' && <em className="family-due late">Überfällig</em>}
     </button>
+    {page && !i.completed && members.length > 0 && <button type="button" className="family-todo-who" aria-expanded={picking === i.id} aria-label={`Zuständig für ${i.text} ändern`} onClick={() => setPicking(picking === i.id ? null : i.id)}>
+      {i.assigneeIds?.length ? <Assignees ids={i.assigneeIds} members={members} /> : <span className="family-who-empty">Alle</span>}
+    </button>}
     {removable && <button type="button" className="family-todo-x" aria-label={`${i.text} löschen`} onClick={() => void tasks.remove(i)}>✕</button>}
+    </div>
+    {picking === i.id && <div className="family-assign-pick" role="group" aria-label={`Wer macht „${i.text}“?`}>
+      <button type="button" aria-pressed={!i.assigneeIds?.length} onClick={() => void tasks.assign(i, [])}>Alle</button>
+      {members.map(member => { const on = !!i.assigneeIds?.includes(member.id); return <button type="button" key={member.id} aria-pressed={on}
+        style={{ '--person': member.color, '--person-ink': inkFor(member.color) } as React.CSSProperties}
+        onClick={() => void tasks.assign(i, on ? (i.assigneeIds ?? []).filter(id => id !== member.id) : [...(i.assigneeIds ?? []), member.id])}><i aria-hidden="true">{member.emoji || member.name.slice(0, 1).toUpperCase()}</i>{member.name}</button>; })}
+    </div>}
   </li>; })}</ul>;
 }
 
 /** Neue Aufgabe mit optionalem Datum: Schnellwahl statt Kalender-Popup, damit es am Touchscreen schnell geht. */
-function AddTask({ tasks }: { tasks: Tasks }) {
+function AddTask({ tasks, members }: { tasks: Tasks; members: FamilyMember[] }) {
   const [text, setText] = useState('');
+  const [who, setWho] = useState<string[]>([]);
   const [due, setDue] = useState<string>('');
   const [picking, setPicking] = useState(false);
   const quick: [string, string][] = [['Heute', addDays(0)], ['Morgen', addDays(1)], ['In 1 Woche', addDays(7)]];
-  const submit = () => { const t = text.trim(); if (!t) return; setText(''); setDue(''); setPicking(false); void tasks.add(t, due || undefined); };
+  const submit = () => { const t = text.trim(); if (!t) return; setText(''); setDue(''); setPicking(false); setWho([]); void tasks.add(t, due || undefined, who); };
   return <form className="family-add-task" onSubmit={e => { e.preventDefault(); submit(); }}>
     <div className="family-add">
       <input value={text} maxLength={200} placeholder="Neue Aufgabe …" aria-label="Neue Aufgabe" onChange={e => setText(e.target.value)} />
@@ -130,6 +160,11 @@ function AddTask({ tasks }: { tasks: Tasks }) {
       {picking && <input type="date" value={due} min={addDays(0)} aria-label="Datum" onChange={e => setDue(e.target.value)} />}
       {due && !picking && <small className="family-chips-note">Fällig: {dueLabel(due)?.text}</small>}
     </div>
+    {members.length > 0 && <div className="family-chips" role="group" aria-label="Für wen? (optional)">
+      <span className="family-chips-label">Für wen?</span>
+      {members.map(member => <button key={member.id} type="button" aria-pressed={who.includes(member.id)} onClick={() => setWho(who.includes(member.id) ? who.filter(id => id !== member.id) : [...who, member.id])}>{member.name}</button>)}
+      {who.length === 0 && <small className="family-chips-note">Ohne Auswahl gilt es für alle.</small>}
+    </div>}
   </form>;
 }
 
@@ -183,17 +218,17 @@ export function FamilyHome({ layout, today, tomorrow, later, members, onOpen, go
       <section className="family-tile family-env"><FamilyWeather variant="widget" /><div className="family-env-rule" /><FamilyRoomClimate /></section>
       <section className="family-tile family-tile-tasks">
         <div className="family-tile-head"><div className="family-eyebrow">Aufgaben</div><span>{tasks.open.length} offen</span></div>
-        <Checklist tasks={tasks} limit={layout === 'standard' ? 5 : 8} />
+        <Checklist tasks={tasks} members={members} limit={layout === 'standard' ? 5 : 8} />
         <button type="button" className="family-more-btn" onClick={goTasks}>+ Aufgabe hinzufügen</button>
       </section>
     </div>
   </div>;
 }
 
-export function FamilyTasks({ tasks }: { tasks: Tasks }) {
+export function FamilyTasks({ tasks, members }: { tasks: Tasks; members: FamilyMember[] }) {
   return <div className="family-tasks-page">
     {tasks.error && <p role="alert" className="family-error">{tasks.error}</p>}
-    <section className="family-tile family-tasks-list"><div className="family-eyebrow">Offen · {tasks.open.length}</div><Checklist tasks={tasks} removable page /><p className="family-hint">Erledigtes verschwindet nach einer Woche.</p></section>
-    <section className="family-tile family-tasks-new"><div className="family-eyebrow">Neue Aufgabe</div><AddTask tasks={tasks} /></section>
+    <section className="family-tile family-tasks-list"><div className="family-eyebrow">Offen · {tasks.open.length}</div><Checklist tasks={tasks} members={members} removable page /><p className="family-hint">Erledigtes verschwindet nach einer Woche.</p></section>
+    <section className="family-tile family-tasks-new"><div className="family-eyebrow">Neue Aufgabe</div><AddTask tasks={tasks} members={members} /></section>
   </div>;
 }
