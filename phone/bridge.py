@@ -32,6 +32,9 @@ logging.getLogger('pytgcalls').setLevel(logging.CRITICAL)
 ROOT = Path(os.environ.get('HOUSEDASH_PHONE_STATE', Path.home() / '.local/share/housedash-phone'))
 SOCKET = ROOT / 'run/bridge.sock'
 BUSY = {'incoming', 'dialing', 'ringing', 'connecting', 'active'}
+# PulseAudio echo canceller (WebRTC) between the Pi microphone and speaker while a call runs.
+AEC_SOURCE, AEC_SINK = 'housedash_mic', 'housedash_speaker'
+AEC_ARGS = 'noise_suppression=1 high_pass_filter=1'
 
 
 def stamp():
@@ -103,6 +106,8 @@ class Telephone:
         self.generation = uuid.uuid4().hex
         self.tasks = set()
         self.tone_task = None
+        self.mic_task = None
+        self.aec_task = None
         self.tone_kind = None
         self.output_volume = None
         self.output_muted = None
@@ -148,6 +153,7 @@ class Telephone:
                 'microphone': self.config.get('microphone') if self.config.get('microphone') in self.inputs else None,
                 'speaker': self.config.get('speaker') if self.config.get('speaker') in self.outputs else None,
                 'ready': bool(self.outputs), 'message': self.device_problem,
+                'echoCancel': self.config.get('echoCancel', True),
                 'volumePercent': self.output_volume, 'muted': self.output_muted,
                 'outputLabel': self.output_label, 'testTone': self.tone_kind,
             },
@@ -190,6 +196,9 @@ class Telephone:
             sinks = json.loads(await local_audio.pulse('--format=json', 'list', 'sinks'))
             sink = next((item for item in sinks if item.get('name') == local_audio.sink_id(device)), None)
             self.output_label = device.title if device else None
+            chosen = self.outputs.get(self.config.get('speaker'))
+            if chosen is not None:
+                await self.follow_default_sink(local_audio.sink_id(chosen))
             levels = [channel['value'] / 65536 * 100 for channel in (sink or {}).get('volume', {}).values()]
             self.output_volume = round(sum(levels) / len(levels)) if levels else None
             self.output_muted = sink.get('mute') if sink else None
@@ -200,6 +209,16 @@ class Telephone:
             self.output_volume, self.output_muted, self.output_label = None, None, None
             self.device_problem = 'Audio-Geräte sind momentan nicht erreichbar.'
         self.publish()
+
+    async def follow_default_sink(self, sink):
+        """Browser audio on the Pi (the AI voice) plays on the PulseAudio default sink. A speaker chosen in the
+        settings therefore also becomes the default; 'Automatisch' leaves the default alone."""
+        try:
+            current = (await local_audio.pulse('get-default-sink')).decode().strip()
+            if sink and current != sink:
+                await local_audio.pulse('set-default-sink', sink)
+        except (RuntimeError, OSError, ValueError):
+            pass
 
     async def stop_tone(self):
         if self.tone_task and not self.tone_task.done():
@@ -401,6 +420,78 @@ class Telephone:
         for start in range(0, len(data) - step + 1, step):
             await self.engine.send_frame(user_id, Device.MICROPHONE, bytes(data[start:start + step]))
 
+    async def drop_echo_cancel(self):
+        """Unload echo cancellers left behind, for example by a crash of this service."""
+        with contextlib.suppress(Exception):
+            for line in (await local_audio.pulse('list', 'short', 'modules')).decode().splitlines():
+                fields = line.split('\t')
+                if len(fields) >= 3 and fields[1] == 'module-echo-cancel' and f'source_name={AEC_SOURCE}' in fields[2]:
+                    await local_audio.pulse('unload-module', fields[0])
+
+    async def open_echo_cancel(self, call_id, source, sink):
+        """Load the echo canceller for this call. Returns the (source, sink) the call should use: the virtual ones,
+        or the given real ones if the canceller is switched off or cannot be loaded (the call then works as before)."""
+        if not self.config.get('echoCancel', True):
+            return source, sink
+        try:
+            await self.drop_echo_cancel()
+            module = (await local_audio.pulse('load-module', 'module-echo-cancel', 'aec_method=webrtc', f'aec_args="{AEC_ARGS}"',
+                                              f'source_name={AEC_SOURCE}', f'sink_name={AEC_SINK}',
+                                              f'source_master={source}', f'sink_master={sink}')).decode().strip()
+            if not module.isdigit():
+                raise RuntimeError('echo canceller did not load')
+        except Exception:  # noqa: BLE001 - the call must not depend on the canceller
+            return source, sink
+        if self.aec_task and not self.aec_task.done():
+            self.aec_task.cancel()
+        self.aec_task = asyncio.create_task(self.hold_echo_cancel(call_id, module))
+        return AEC_SOURCE, AEC_SINK
+
+    async def hold_echo_cancel(self, call_id, module):
+        try:
+            while True:
+                call = self.call
+                if not call or call['id'] != call_id or call['phase'] not in BUSY:
+                    break
+                await asyncio.sleep(0.5)
+        finally:
+            with contextlib.suppress(Exception):
+                await local_audio.pulse('unload-module', module)
+
+    def start_microphone(self, call_id, user_id, source):
+        if self.mic_task and not self.mic_task.done():
+            self.mic_task.cancel()
+        self.mic_task = asyncio.create_task(self.pump_microphone(call_id, user_id, source))
+
+    async def pump_microphone(self, call_id, user_id, source):
+        """Read the Pi microphone through PulseAudio with a steady 40 ms buffer and give it to the call in 10 ms frames
+        (PCM, 48 kHz, mono, 16 bit). Restarts after a short break if the USB microphone is re-plugged."""
+        def active():
+            call = self.call
+            return bool(call and call['id'] == call_id and call['phase'] in BUSY and self.engine)
+        while active():
+            process = None
+            try:
+                process = await asyncio.create_subprocess_exec(
+                    'parec', f'--device={source}', '--rate=48000', '--channels=1', '--format=s16le',
+                    '--latency-msec=40', '--process-time-msec=10', '--client-name=HouseDash', '--stream-name=Telefon-Mikrofon',
+                    stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL)
+                while active():
+                    frame = await process.stdout.readexactly(960)
+                    if self.call.get('muted'):
+                        continue
+                    with contextlib.suppress(Exception):
+                        await self.engine.send_frame(user_id, Device.MICROPHONE, frame)
+            except (asyncio.IncompleteReadError, OSError):
+                pass
+            finally:
+                if process and process.returncode is None:
+                    with contextlib.suppress(ProcessLookupError):
+                        process.kill()
+                    await process.wait()
+            if active():
+                await asyncio.sleep(1)
+
     async def stream_call(self, call_id):
         try:
             user_id = int(self.call['userId'])
@@ -425,11 +516,21 @@ class Telephone:
             # An empty raw Stream opens no capture device (including output monitors).
             self.call.update(listenOnly=microphone is None, muted=microphone is None)
             self.publish()
-            capture = (MediaStream(microphone, audio_parameters=AudioParameters(48000, 1),
-                                   video_flags=MediaStream.Flags.IGNORE) if microphone else Stream())
+            mic_source = local_audio.source_id(microphone) if microphone else None
+            if mic_source:
+                real_sink = local_audio.sink_id(speaker)
+                mic_source, speaker_sink = await self.open_echo_cancel(call_id, mic_source, real_sink)
+                if speaker_sink != real_sink:
+                    # Play the call through the canceller's virtual sink, so it knows what the microphone must not send back.
+                    speaker = type(speaker)(speaker.title, json.dumps({'is_microphone': False, 'id': speaker_sink}))
+            # The microphone is read by pump_microphone() and handed over as raw frames: the native device capture
+            # of ntgcalls asks PulseAudio for a 0.5 ms buffer, which a USB microphone cannot keep up with (crackling).
+            capture = Stream(microphone=AudioStream(MediaSource.EXTERNAL, '', AudioParameters(48000, 1))) if microphone else Stream()
             await self.engine.play(user_id, capture, CallConfig(timeout=45))
             if not self.call or self.call['id'] != call_id or self.call['phase'] not in BUSY:
                 return
+            if microphone:
+                self.start_microphone(call_id, user_id, mic_source)
             await self.engine.record(user_id, RecordStream(audio=speaker, audio_parameters=AudioParameters(48000, 1)))
             if self.call and self.call['id'] == call_id and self.call['phase'] in BUSY:
                 self.call.update(phase='active', connectedAt=stamp())
@@ -559,6 +660,10 @@ class Telephone:
                     if value is not None and value not in devices:
                         raise Problem('Dieses Audio-Gerät ist nicht mehr angeschlossen.')
                     self.config[key] = value
+                if 'echoCancel' in body:
+                    if not isinstance(body['echoCancel'], bool):
+                        raise Problem('Ungültige Einstellung.')
+                    self.config['echoCancel'] = body['echoCancel']
                 self.save()
                 await self.refresh_audio()
             elif action == 'call':

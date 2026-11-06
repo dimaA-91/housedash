@@ -38,6 +38,17 @@ def sink_id(device):
     return value
 
 
+def source_id(device):
+    """PulseAudio source name of a microphone device."""
+    if device is None:
+        return None
+    metadata = json.loads(device.metadata)
+    value = metadata.get('id')
+    if metadata.get('is_microphone') is not True or not isinstance(value, str) or not value or len(value) > 256:
+        raise ValueError('Invalid microphone metadata')
+    return value
+
+
 def samples(kind):
     rate = 48000
     result = array.array('h')

@@ -16,6 +16,8 @@ export interface PhoneState {
     microphones: { id: string; name: string }[]; speakers: { id: string; name: string }[];
     microphone: string | null; speaker: string | null; ready: boolean; message: string | null;
     volumePercent?: number | null; muted?: boolean | null; outputLabel?: string | null;
+    /** Echo and noise suppression for calls at the Pi. On by default. */
+    echoCancel?: boolean;
     testTone?: 'dial' | 'ring' | 'busy' | null;
   };
   call: PhoneCall | null; error: string | null;
