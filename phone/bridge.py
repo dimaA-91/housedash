@@ -477,7 +477,10 @@ class Telephone:
                     '--latency-msec=40', '--process-time-msec=10', '--client-name=HouseDash', '--stream-name=Telefon-Mikrofon',
                     stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL)
                 while active():
-                    frame = await process.stdout.readexactly(960)
+                    try:
+                        frame = await asyncio.wait_for(process.stdout.readexactly(960), timeout=2)
+                    except asyncio.TimeoutError:
+                        continue  # no data for a moment: look at the call state again, so the reader never outlives the call
                     if self.call.get('muted'):
                         continue
                     with contextlib.suppress(Exception):
@@ -516,20 +519,19 @@ class Telephone:
             # An empty raw Stream opens no capture device (including output monitors).
             self.call.update(listenOnly=microphone is None, muted=microphone is None)
             self.publish()
-            mic_source = local_audio.source_id(microphone) if microphone else None
-            if mic_source:
-                real_sink = local_audio.sink_id(speaker)
-                mic_source, speaker_sink = await self.open_echo_cancel(call_id, mic_source, real_sink)
-                if speaker_sink != real_sink:
-                    # Play the call through the canceller's virtual sink, so it knows what the microphone must not send back.
-                    speaker = type(speaker)(speaker.title, json.dumps({'is_microphone': False, 'id': speaker_sink}))
             # The microphone is read by pump_microphone() and handed over as raw frames: the native device capture
             # of ntgcalls asks PulseAudio for a 0.5 ms buffer, which a USB microphone cannot keep up with (crackling).
             capture = Stream(microphone=AudioStream(MediaSource.EXTERNAL, '', AudioParameters(48000, 1))) if microphone else Stream()
+            # play() returns once the other side has picked up. Until then no microphone is opened: not while it rings.
             await self.engine.play(user_id, capture, CallConfig(timeout=45))
             if not self.call or self.call['id'] != call_id or self.call['phase'] not in BUSY:
                 return
             if microphone:
+                mic_source, real_sink = local_audio.source_id(microphone), local_audio.sink_id(speaker)
+                mic_source, speaker_sink = await self.open_echo_cancel(call_id, mic_source, real_sink)
+                if speaker_sink != real_sink:
+                    # Play the call through the canceller's virtual sink, so it knows what the microphone must not send back.
+                    speaker = type(speaker)(speaker.title, json.dumps({'is_microphone': False, 'id': speaker_sink}))
                 self.start_microphone(call_id, user_id, mic_source)
             await self.engine.record(user_id, RecordStream(audio=speaker, audio_parameters=AudioParameters(48000, 1)))
             if self.call and self.call['id'] == call_id and self.call['phase'] in BUSY:
@@ -560,6 +562,8 @@ class Telephone:
             self.call_task.cancel()
             with contextlib.suppress(asyncio.CancelledError):
                 await self.call_task
+        if self.mic_task and not self.mic_task.done():
+            self.mic_task.cancel()  # closes the microphone at once
         if self.engine:
             with contextlib.suppress(Exception):
                 await asyncio.wait_for(self.engine.leave_call(int(current['userId'])), timeout=3)
@@ -725,8 +729,22 @@ class Telephone:
                 self.connected = connected
                 self.publish()
 
+    async def idle_guard(self):
+        """Safety net: outside a call nothing of ours may keep the microphone open. Stray readers and echo
+        cancellers (for example left behind by a crash) are removed every few seconds."""
+        while True:
+            await asyncio.sleep(10)
+            call = self.call
+            if call and call['phase'] in BUSY:
+                continue
+            if self.mic_task and not self.mic_task.done():
+                self.mic_task.cancel()
+            await self.drop_echo_cancel()
+
     async def start(self):
+        await self.drop_echo_cancel()
         await self.refresh_audio()
+        self.task(self.idle_guard())
         self.task(self.watch_audio())
         self.task(self.status_loop())
         if self.config.get('apiHash'):

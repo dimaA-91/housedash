@@ -755,6 +755,13 @@ html,body{overscroll-behavior-x:none}
 .family-shell .family-personchip[aria-pressed="true"]{box-shadow:0 0 0 3px var(--surface,#fff),0 0 0 5px var(--person)}
 .family-shell .family-personbar.filtering .family-personchip[aria-pressed="false"]{opacity:.4}
 .family-personbar-label{font-size:16px;font-weight:600;color:var(--ink);white-space:nowrap}
+/* Microphone is on */
+.family-shell .family-mic{display:inline-flex;align-items:center;gap:8px;padding:7px 14px;border-radius:999px;background:#fee2e2;color:#b91c1c;font-size:15px;font-weight:700;white-space:nowrap}
+.family-shell .family-mic i{width:10px;height:10px;border-radius:50%;background:#dc2626;animation:family-mic-pulse 1.4s ease-in-out infinite}
+.family-shell.family-dark .family-mic{background:#450a0a;color:#fecaca}
+@keyframes family-mic-pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@media (prefers-reduced-motion:reduce){.family-shell .family-mic i{animation:none}}
+
 /* Who is responsible for a task */
 .family-assignees{display:inline-flex;align-items:center;flex:none}
 .family-assignees i{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:50%;background:var(--person);color:var(--person-ink);font:700 13px/1 inherit;font-style:normal;box-shadow:0 0 0 2px var(--surface,#fff)}

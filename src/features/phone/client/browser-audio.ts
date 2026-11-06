@@ -1,4 +1,4 @@
-import { routeToSpeaker } from '@/app/family/client-audio';
+import { routeToSpeaker, trackMicrophone } from '@/app/family/client-audio';
 import { readSpeakerPreference, readVoiceDevicePreference } from '@/app/family/useVoiceDevices';
 /**
  * Telefon-Ton im Browser: Mikrofon und Lautsprecher des Geräts, mit dem man telefoniert (Handy, iPad).
@@ -54,6 +54,7 @@ export class BrowserCallAudio {
         try { microphone = microphoneId ? await navigator.mediaDevices.getUserMedia({ audio: constraints }) : null; } catch { microphone = null; }
       }
     }
+    if (microphone) trackMicrophone(microphone);
     return new BrowserCallAudio(context, microphone);
   }
 

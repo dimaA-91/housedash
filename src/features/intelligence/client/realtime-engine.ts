@@ -1,5 +1,5 @@
 import type { VoiceAction } from '@/lib/family-voice-shared';
-import { routeToSpeaker } from '@/app/family/client-audio';
+import { routeToSpeaker, trackMicrophone } from '@/app/family/client-audio';
 import { microphoneMessage, readEvents, type VoiceEngine, type VoiceEngineOptions, type VoiceEvents } from './engine';
 
 const IDLE_LIMIT_MS = 90_000;
@@ -61,6 +61,7 @@ export class RealtimeEngine implements VoiceEngine {
       if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) throw new Error('Sprechen geht nur über die HTTPS-Adresse. Schreiben und Hören funktionieren hier.');
       this.stream = await navigator.mediaDevices.getUserMedia({ audio: { ...(this.options.microphoneId ? { deviceId: { exact: this.options.microphoneId } } : {}), channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false });
       this.hasMicrophone = true;
+      trackMicrophone(this.stream);
       this.stream.getAudioTracks().forEach(track => { track.enabled = this.microphoneEnabled; });
     } catch (failure) { this.events.microphone(microphoneMessage(failure)); }
     if (this.stopped) { this.release(); return; }

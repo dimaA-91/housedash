@@ -2,6 +2,16 @@
 let context: AudioContext | null = null;
 let speech: AudioBufferSourceNode | null = null;
 let speakerId = '';
+/** Every microphone stream this browser opens is listed here, so the header can show when one is on. */
+const openStreams = new Set<MediaStream>();
+export function trackMicrophone(stream: MediaStream) {
+  openStreams.add(stream);
+  if (typeof window !== 'undefined') window.dispatchEvent(new Event('housedash-mic'));
+}
+export function microphoneOpen() {
+  for (const stream of [...openStreams]) if (!stream.active) openStreams.delete(stream);
+  return openStreams.size > 0;
+}
 type Sinkable = { setSinkId?: (id: string) => Promise<void> };
 /** Route an audio element or context to an output device. '' is the system default. Rejects if the device is gone. */
 export async function routeToSpeaker(target: unknown, id: string) {
@@ -77,6 +87,7 @@ export async function startClientRecording(deviceId: string, onLevel?: (level: n
   stopClientSpeech();
   const audio = prepareClientAudio();
   const stream = await navigator.mediaDevices.getUserMedia({ audio: { ...(deviceId ? { deviceId: { exact: deviceId } } : {}), channelCount: 1, echoCancellation: true, noiseSuppression: true }, video: false });
+  trackMicrophone(stream);
   let node: AudioWorkletNode | null = null;
   let source: MediaStreamAudioSourceNode | null = null;
   let closed = false;

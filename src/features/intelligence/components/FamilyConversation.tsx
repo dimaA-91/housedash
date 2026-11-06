@@ -116,7 +116,10 @@ export default function FamilyConversation({ onBack }: { onBack: () => void }) {
     history.current = readHistory();
     setMessages(history.current);
     void begin();
-    return () => { closing.current = true; engine.current?.stop(); engine.current = null; };
+    // A conversation never keeps listening in the background: leaving the page ends it and closes the microphone.
+    const hide = () => { if (document.visibilityState === 'hidden') engine.current?.stop(); };
+    document.addEventListener('visibilitychange', hide);
+    return () => { document.removeEventListener('visibilitychange', hide); closing.current = true; engine.current?.stop(); engine.current = null; };
   }, [begin]);
   useEffect(() => { if (followMessages.current) list.current?.scrollTo({ top: list.current.scrollHeight }); }, [messages, partial, actions]);
   useEffect(() => {
